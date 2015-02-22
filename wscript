@@ -7,6 +7,9 @@ from waflib.Configure import conf
 top = '.'
 out = 'build'
 
+def developer_mode():
+    return "PEBBLE_DEVELOPER" in os.environ
+
 def options(ctx):
     ctx.load('pebble_sdk')
 
@@ -64,6 +67,8 @@ def concat_javascript(self, *k, **kw):
             return relpath, body
 
         sources = []
+        if developer_mode():
+            sources.append("var PEBBLE_DEVELOPER = true;")
         for node in task.inputs:
             relpath = os.path.relpath(node.abspath(), js_path)
             with open(node.abspath(), 'r') as f:

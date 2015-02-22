@@ -1,35 +1,41 @@
 {
-  "uuid": "133215f0-cf20-4c05-997b-3c9be5a64e5b",
-  "shortName": "Pebble.js",
-  "longName": "Pebble.js",
-  "companyName": "Meiguro",
-  "versionCode": 1,
-  "versionLabel": "0.4",
-  "capabilities": [ "configurable" ],
-  "watchapp": {
-    "watchface": false
-  },
-  "appKeys": {},
-  "resources": {
-    "media": [
-      {
-        "menuIcon": true,
-        "type": "png",
-        "name": "IMAGE_MENU_ICON",
-        "file": "images/menu_icon.png"
-      }, {
-        "type": "png",
-        "name": "IMAGE_LOGO_SPLASH",
-        "file": "images/logo_splash.png"
-      }, {
-        "type": "png",
-        "name": "IMAGE_TILE_SPLASH",
-        "file": "images/tile_splash.png"
-      }, {
-        "type": "font",
-        "name": "MONO_FONT_14",
-        "file": "fonts/UbuntuMono-Regular.ttf"
-      }
-    ]
-  }
+    "appKeys": {},
+    "capabilities": [
+        "configurable"
+    ],
+    "companyName": "youtux@gmail.com",
+    "longName": "Pebble Shows (pebblejs)",
+    "projectType": "pebblejs",
+    "resources": {
+        "media": [
+            {
+                "file": "images/menu_icon.png",
+                "menuIcon": true,
+                "name": "IMAGE_MENU_ICON",
+                "type": "png"
+            },
+            {
+                "file": "images/logo_splash.png",
+                "name": "IMAGE_LOGO_SPLASH",
+                "type": "png"
+            },
+            {
+                "file": "images/tile_splash.png",
+                "name": "IMAGE_TILE_SPLASH",
+                "type": "png"
+            },
+            {
+                "file": "fonts/UbuntuMono-Regular.ttf",
+                "name": "MONO_FONT_14",
+                "type": "font"
+            }
+        ]
+    },
+    "shortName": "Pebble Shows (pebblejs)",
+    "uuid": "1596d615-c853-438c-9852-df68ce14d915",
+    "versionCode": 1,
+    "versionLabel": "1.0",
+    "watchapp": {
+        "watchface": false
+    }
 }
