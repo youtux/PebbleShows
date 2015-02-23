@@ -68,6 +68,7 @@ def concat_javascript(self, *k, **kw):
 
         sources = []
         if developer_mode():
+            print "PEBBLE_DEVELOPER = true"
             sources.append("var PEBBLE_DEVELOPER = true;")
         for node in task.inputs:
             relpath = os.path.relpath(node.abspath(), js_path)
