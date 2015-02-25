@@ -208,7 +208,7 @@ displayToWatchMenu = (callback) ->
   unless shows?
     handler = (e) ->
       updatesEmitter.off 'updates', 'shows', handler
-      displayToWatchMenu()
+      displayToWatchMenu(callback)
     updatesEmitter.on 'update', 'shows', handler
     return
 
@@ -303,22 +303,17 @@ displayToWatchMenu = (callback) ->
               toWatchMenu.item(e.sectionIndex, e.section.items.length, newItem)
 
   toWatchMenu.on 'select', (e) ->
-    episode = e.item.data
+    element = e.item
     traktvRequest(
-      "https://api-v2launch.trakt.tv/shows/#{episode.show.ids.trakt}/seasons/#{episode.season}/episodes/#{episode.episode}",
+      "https://api-v2launch.trakt.tv/shows/#{element.data.showID}/seasons/#{element.data.seasonNumber}/episodes/#{element.data.episodeNumber}",
       (response, status, req) ->
+        showTitle = item.show.title for item in shows when item.show.ids.trakt == element.data.showID
         detailedItemCard = new UI.Card(
-          title: episode.show.title
-          subtitle: "Season #{episode.season} Ep. #{episode.episode}"
+          title: showTitle
+          subtitle: "Season #{element.data.seasonNumber} Ep. #{element.data.episodeNumber}"
           body: "Title: #{response.title}"
           style: 'small'
         )
-        # detailedItemCard.on('longClick', 'select', ->
-        #   e.item.subtitle = "Checking in..."
-        #   toWatchMenu.item(e.sectionIndex, e.itemIndex, e.item)
-        #   detailedItemCard.hide()
-        #   checkWatched episode, -> checkHandler(e)
-        # )
         detailedItemCard.show()
     )
   toWatchMenu.show()
