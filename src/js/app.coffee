@@ -8,11 +8,12 @@ CONFIG_BASE_URL = 'http://bobby.alessiobogon.com:8020/'
 ICON_MENU_UNCHECKED = 'images/icon_menu_unchecked.png'
 ICON_MENU_CHECKED = 'images/icon_menu_checked.png'
 
+userDateFormat = "D MMMM YYYY"
+
 console.log "accessToken: #{Settings.option 'accessToken'}"
 
 mainMenu = undefined
 signInWindow = undefined
-detailedItemCard = undefined
 
 updatesEmitter = new Emitter()
 
@@ -35,7 +36,7 @@ traktvRequest = (opt, success, failure) ->
 
   method = opt.method ? 'GET'
 
-  url = if opt.url
+  url = if opt.url?
     opt.url
   else
     if opt.action[0] == '/'
@@ -69,8 +70,7 @@ traktvRequest = (opt, success, failure) ->
       failure(response, status, req)
 
 reloadShow = (showID, success, failure) ->
-  traktvRequest(
-    "https://api-v2launch.trakt.tv/shows/#{showID}/progress/watched"
+  traktvRequest "/shows/#{showID}/progress/watched",
     (response, status, req) ->
       console.log "Reloading show #{showID}"
       item = i for i in shows when i.show.ids.trakt == showID
@@ -79,7 +79,6 @@ reloadShow = (showID, success, failure) ->
       item.seasons = response.seasons
       success(item) if success?
     failure if failure?
-  )
 
 
 
@@ -88,8 +87,7 @@ getToWatchList = (showList, callback) ->
   async.each(
     showListUpdated
     (item, doneItem) ->
-      traktvRequest(
-        "https://api-v2launch.trakt.tv/shows/#{item.show.ids.trakt}/progress/watched"
+      traktvRequest "/shows/#{item.show.ids.trakt}/progress/watched",
         (response, status, req) ->
           # console.log "getToWatchList: asked "
           # console.log "returned: #{JSON.stringify response.seasons}"
@@ -101,7 +99,6 @@ getToWatchList = (showList, callback) ->
           #   for episode in season.episodes
           #     episode.completed ?= false
           doneItem()
-      )
     (err) ->
       if err?
         console.log "Failed response (#{err.status}): #{err.response}"
@@ -157,12 +154,12 @@ modifyCheckState = (opt, success, failure) ->
       }] if opt.seasonNumber
     ]
 
-  url = 'https://api-v2launch.trakt.tv/sync/history'
-  url += '/remove' if opt.completed == false
+  action = '/sync/history'
+  action += '/remove' if opt.completed == false
 
   # console.log "request: #{JSON.stringify request}"
   traktvRequest
-    url: url
+    action: action
     method: 'POST'
     data: request
     (response, status, req) ->
@@ -304,8 +301,7 @@ displayToWatchMenu = (callback) ->
 
   toWatchMenu.on 'select', (e) ->
     element = e.item
-    traktvRequest(
-      "https://api-v2launch.trakt.tv/shows/#{element.data.showID}/seasons/#{element.data.seasonNumber}/episodes/#{element.data.episodeNumber}",
+    traktvRequest "/shows/#{element.data.showID}/seasons/#{element.data.seasonNumber}/episodes/#{element.data.episodeNumber}",
       (response, status, req) ->
         showTitle = item.show.title for item in shows when item.show.ids.trakt == element.data.showID
         detailedItemCard = new UI.Card(
@@ -315,10 +311,52 @@ displayToWatchMenu = (callback) ->
           style: 'small'
         )
         detailedItemCard.show()
-    )
+
   toWatchMenu.show()
 
   callback() if callback?
+
+displayUpcomingMenu = (callback) ->
+  startingDate = moment().format('YYYY-MM-DD')
+  days = 7
+  traktvRequest "/calendars/shows/#{startingDate}/#{days}",
+    (response, status, req)->
+      sections =
+        {
+          title: moment(date).format(userDateFormat)
+          items:
+            {
+              title: item.show.title
+              subtitle: "S#{item.episode.season}E#{item.episode.number} | #{moment(item.airs_at).format('HH:MM')}"
+              data:
+                showID: item.show.ids.trakt
+                seasonNumber: item.episode.season
+                episodeNumber: item.episode.number
+
+            } for item in items
+        } for date, items of response
+      console.log "sections: #{JSON.stringify sections}"
+
+      upcomingMenu = new UI.Menu(
+        sections: sections
+      )
+
+      upcomingMenu.show()
+
+      upcomingMenu.on 'select', (e) ->
+        element = e.item
+        traktvRequest "/shows/#{element.data.showID}/seasons/#{element.data.seasonNumber}/episodes/#{element.data.episodeNumber}",
+          (response, status, req) ->
+            showTitle = item.show.title for item in shows when item.show.ids.trakt == element.data.showID
+            detailedItemCard = new UI.Card(
+              title: showTitle
+              subtitle: "Season #{element.data.seasonNumber} Ep. #{element.data.episodeNumber}"
+              body: "Title: #{response.title}"
+              style: 'small'
+            )
+            detailedItemCard.show()
+
+
 
 initSettings = ->
   Settings.init()
@@ -337,8 +375,8 @@ mainMenu = new UI.Menu
       title: 'To watch'
       id: 'toWatch'
     },{
-      title: 'Calendar'
-      id: 'calendar'
+      title: 'Upcoming episodes'
+      id: 'upcoming'
     }, {
       title: 'Advanced'
       id: 'advanced'
@@ -353,6 +391,8 @@ mainMenu.on 'select', (e) ->
       displayToWatchMenu ->
         e.item.subtitle = undefined
         mainMenu.item(e.sectionIndex, e.itemIndex, e.item)
+    when 'upcoming'
+      displayUpcomingMenu()
     when 'advanced'
       advancedMenu = new UI.Menu
         sections: [
