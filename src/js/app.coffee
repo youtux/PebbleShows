@@ -12,11 +12,9 @@ userDateFormat = "D MMMM YYYY"
 
 console.log "accessToken: #{Settings.option 'accessToken'}"
 
-mainMenu = undefined
-signInWindow = undefined
-
 updatesEmitter = new Emitter()
 
+signInWindow = undefined
 shows = undefined
 
 sleep = (ms) ->
@@ -34,18 +32,12 @@ traktvRequest = (opt, success, failure) ->
     else
       action: opt
 
-  method = opt.method ? 'GET'
+  opt.method ?= 'GET'
 
-  url = if opt.url?
-    opt.url
-  else
-    if opt.action[0] == '/'
-      opt.action = opt.action[1..]
-    "https://api-v2launch.trakt.tv/#{opt.action}"
+  if opt.action[0] == '/'
+    opt.action = opt.action[1..]
 
-  # console.log "build url: " + JSON.stringify(url)
-
-  data = opt.data
+  opt.url ?= "https://api-v2launch.trakt.tv/#{opt.action}"
 
   accessToken = Settings.option 'accessToken'
   unless accessToken?
@@ -53,14 +45,14 @@ traktvRequest = (opt, success, failure) ->
     return
 
   ajax
-    url: url
+    url: opt.url
     type: 'json'
     headers:
       'trakt-api-version': 2
       'trakt-api-key': '16fc8c04f10ebdf6074611891c7ce2727b4fcae3d2ab2df177625989543085e9'
       Authorization: "Bearer #{accessToken}"
-    method: method
-    data: data
+    method: opt.method
+    data: opt.data
     success
     (response, status, req) ->
       if status == 401
@@ -79,8 +71,6 @@ reloadShow = (showID, success, failure) ->
       item.seasons = response.seasons
       success(item) if success?
     failure if failure?
-
-
 
 getToWatchList = (showList, callback) ->
   showListUpdated = showList[..]
@@ -175,12 +165,17 @@ modifyCheckState = (opt, success, failure) ->
       console.log "Check FAILURE"
       failure(response, status, req)
 
-
 compareByKey = (key) ->
   (a, b) ->
     -1 if a[key] < b[key]
     0 if a[key] == b[key]
     1 if a[key] > b[key]
+
+compareByFunction = (keyFunction) ->
+  (a, b) ->
+    -1 if keyFunction(a) < keyFunction(b)
+    0 if keyFunction(a) == keyFunction(b)
+    1 if keyFunction(a) > keyFunction(b)
 
 # {
 #   episode: 12
@@ -199,6 +194,62 @@ firstUnwatchedEpisode = (show) ->
           episodeNumber: episode.number
           seasonNumber: season.number
         }
+
+createToWatchMenuItem = (opt) ->
+  for key in ['showID', 'episodeTitle', 'seasonNumber', 'episodeNumber', 'completed']
+    unless opt[key]?
+      console.log "ERROR: #{key} not in #{JSON.stringify opt}"
+      return
+  {
+    title: opt.episodeTitle
+    subtitle: "Season #{opt.seasonNumber} Ep. #{opt.episodeNumber}"
+    icon: if opt.completed then ICON_MENU_CHECKED else ICON_MENU_UNCHECKED
+    data:
+      showID: opt.showID
+      episodeNumber: opt.episodeNumber
+      seasonNumber: opt.seasonNumber
+      completed: opt.completed
+      isNextEpisodeListed: opt.isNextEpisodeListed
+  }
+
+getEpisodeData = (showID, seasonNumber, episodeNumber, callback) ->
+  # toWatchMenu.on 'select', (e) ->
+  # element = e.item
+  item = i for i in shows if i.show.ids.trakt == showID
+  season = s for s in item.seasons when s.number == seasonNumber
+  episode = e for e in season.episodes when e.number == episodeNumber
+
+  episode.seasonNumber = seasonNumber
+  episode.episodeNumber = episodeNumber
+  episode.showID = showID
+
+  unless episode.id? and episode.title? and episode.overview?
+    traktvRequest "/shows/#{showID}/seasons/#{seasonNumber}/episodes/#{episodeNumber}",
+    (response, status, req) ->
+      episode.id = response.ids.trakt
+      episode.title = response.title
+
+      if episode.overview?
+        callback(episode) if callback?
+      else
+        traktvRequest "/search?id_type=trakt-episode&id=#{episode.id}",
+          (response, status, req) ->
+            if response
+              episode.overview = response[0].episode.overview
+            callback(episode) if callback?
+
+
+  traktvRequest "/shows/#{element.data.showID}/seasons/#{element.data.seasonNumber}/episodes/#{element.data.episodeNumber}",
+    (response, status, req) ->
+      showTitle = item.show.title for item in shows when item.show.ids.trakt == element.data.showID
+      detailedItemCard = new UI.Card(
+        title: showTitle
+        subtitle: "Season #{element.data.seasonNumber} Ep. #{element.data.episodeNumber}"
+        body: "Title: #{response.title}"
+        style: 'small'
+      )
+      detailedItemCard.show()
+
 
 
 displayToWatchMenu = (callback) ->
@@ -226,26 +277,12 @@ displayToWatchMenu = (callback) ->
             episodeNumber: ep.episodeNumber
             seasonNumber: ep.seasonNumber
             showID: item.show.ids.trakt
+            completed: false
     toWatch
 
   # console.log "item: #{key}: #{value}" for key, value of item for item in shows
   # console.log "data: #{JSON.stringify data}"
-  createToWatchMenuItem = (opt) ->
-    for key in ['showID', 'episodeTitle', 'seasonNumber', 'episodeNumber', 'completed']
-      unless opt[key]?
-        console.log "ERROR: #{key} not in #{JSON.stringify opt}"
-        return
-    {
-      title: opt.episodeTitle
-      subtitle: "Season #{opt.seasonNumber} Ep. #{opt.episodeNumber}"
-      icon: if opt.completed then ICON_MENU_CHECKED else ICON_MENU_UNCHECKED
-      data:
-        showID: opt.showID
-        episodeNumber: opt.episodeNumber
-        seasonNumber: opt.seasonNumber
-        completed: opt.completed
-        isNextEpisodeListed: opt.isNextEpisodeListed
-    }
+
 
   toWatchMenu = new UI.Menu
     sections:
@@ -283,6 +320,7 @@ displayToWatchMenu = (callback) ->
         toWatchMenu.item(e.sectionIndex, e.itemIndex, element)
 
         if isNowCompleted and not element.isNextEpisodeListed
+          # TODO: clean this mess using getEpisodeData
           reloadShow data.showID, (reloadedShow) ->
             console.log "RELOADED ShowID: #{reloadedShow.show.ids.trakt}, title: #{reloadedShow.show.title}"
             if isNextEpisodeForItemAired(reloadedShow) and not element.isNextEpisodeListed
@@ -355,8 +393,65 @@ displayUpcomingMenu = (callback) ->
               style: 'small'
             )
             detailedItemCard.show()
+      callback() if callback?
 
+displayShowsMenu = (callback) ->
+  console.log "displayShowsMenu: shows? #{shows?}"
+  unless shows?
+    handler = (e) ->
+      updatesEmitter.off 'updates', 'shows', handler
+      displayShowsMenu callback
+    updatesEmitter.on 'update', 'shows', handler
+    return
 
+  sortedShows = shows[..]
+  sortedShows.sort compareByFunction (e) -> moment(e.last_watched_at)
+
+  showsMenu = new UI.Menu
+    sections: [{
+      items:
+        {
+          title: item.show.title
+          data:
+            showID: item.show.ids.trakt
+        } for item in sortedShows
+    }]
+
+  showsMenu.show()
+
+  showsMenu.on 'select', (e) ->
+    data = e.item.data
+    item = i for i in shows when i.show.ids.trakt == data.showID
+    seasonsMenu = new UI.Menu
+      sections: [{
+        items:
+          {
+            title: "Season #{season.number}"
+            data:
+              showID: data.showID
+              seasonNumber: season.number
+          } for season in item.seasons
+      }]
+
+    seasonsMenu.show()
+
+    seasonsMenu.on 'select', (e) ->
+      data = e.item.data
+      season = s for s in item.seasons when s.number == data.seasonNumber
+      episodesMenu = new UI.Menu
+        sections: [{
+          items:
+            createToWatchMenuItem(
+              showID: data.showID
+              episodeTitle: "bo"
+              seasonNumber: data.seasonNumber
+              episodeNumber: episode.number
+              completed: false
+            ) for episode in season.episodes
+        }]
+      episodesMenu.show()
+
+  callback() if callback?
 
 initSettings = ->
   Settings.init()
@@ -374,9 +469,12 @@ mainMenu = new UI.Menu
     items: [{
       title: 'To watch'
       id: 'toWatch'
-    },{
+    }, {
       title: 'Upcoming episodes'
       id: 'upcoming'
+    }, {
+      title: 'My shows'
+      id: 'myShows'
     }, {
       title: 'Advanced'
       id: 'advanced'
@@ -385,14 +483,22 @@ mainMenu = new UI.Menu
 
 mainMenu.on 'select', (e) ->
   switch e.item.id
-    when 'toWatch'
+    when 'toWatch', 'upcoming'
       e.item.subtitle = "Loading..."
       mainMenu.item(e.sectionIndex, e.itemIndex, e.item)
-      displayToWatchMenu ->
-        e.item.subtitle = undefined
+
+      displayFunction =
+        switch e.item.id
+          when 'toWatch' then displayToWatchMenu
+          when 'upcoming' then displayUpcomingMenu
+
+      displayFunction ->
+        delete e.item.subtitle
         mainMenu.item(e.sectionIndex, e.itemIndex, e.item)
-    when 'upcoming'
-      displayUpcomingMenu()
+
+    when 'myShows'
+      displayShowsMenu()
+
     when 'advanced'
       advancedMenu = new UI.Menu
         sections: [

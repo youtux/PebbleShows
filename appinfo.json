@@ -15,6 +15,16 @@
                 "type": "png"
             },
             {
+                "file": "images/icon_menu_checked.png",
+                "name": "ICON_MENU_CHECKED",
+                "type": "png"
+            },
+            {
+                "file": "images/icon_menu_unchecked.png",
+                "name": "ICON_MENU_UNCHECKED",
+                "type": "png"
+            },
+            {
                 "file": "images/logo_splash.png",
                 "name": "IMAGE_LOGO_SPLASH",
                 "type": "png"
