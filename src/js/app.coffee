@@ -42,7 +42,7 @@ traktvRequest = (opt, success, failure) ->
   accessToken = Settings.option 'accessToken'
   unless accessToken?
     displaySignInWindow()
-    return
+    failure("accessToken is needed")
 
   ajax
     url: opt.url
@@ -58,7 +58,7 @@ traktvRequest = (opt, success, failure) ->
       if status == 401
         console.log "Server says that authorization is required"
         displaySignInWindow()
-      console.log "Request failure (#{status} #{method} #{url})"
+      console.log "Request failure (#{status} #{opt.method} #{opt.url})"
       failure(response, status, req)
 
 reloadShow = (showID, success, failure) ->
@@ -81,19 +81,15 @@ getToWatchList = (showList, callback) ->
         (response, status, req) ->
           # console.log "getToWatchList: asked "
           # console.log "returned: #{JSON.stringify response.seasons}"
-          if status != 200
-            doneItem(response: response, status: status, req: req)
           item.next_episode = response.next_episode
           item.seasons = response.seasons
           # for season in item.seasons
           #   for episode in season.episodes
           #     episode.completed ?= false
           doneItem()
+        (response, status, req) ->
+          doneItem()
     (err) ->
-      if err?
-        console.log "Failed response (#{err.status}): #{err.response}"
-        console.log "Request was: #{err.req}"
-      # console.log "getToWatchList returning"
       callback(showListUpdated) if callback?
   )
 
@@ -108,6 +104,8 @@ displaySignInWindow = ->
   signInWindow.show()
 
 isNextEpisodeForItemAired = (item) ->
+  # console.log "isNextEpisodeForItemAired of item: #{JSON.stringify item.show.title}"
+  # console.log "item.next_episode #{JSON.stringify item.next_episode}"
   return false unless item.next_episode?
   if item.next_episode.season > item.seasons.length
     return false
@@ -212,43 +210,65 @@ createToWatchMenuItem = (opt) ->
       isNextEpisodeListed: opt.isNextEpisodeListed
   }
 
-getEpisodeData = (showID, seasonNumber, episodeNumber, callback) ->
+getOrFetchEpisodeData = (showID, seasonNumber, episodeNumber, callback) ->
   # toWatchMenu.on 'select', (e) ->
   # element = e.item
-  item = i for i in shows if i.show.ids.trakt == showID
+  console.log "getOrFetchEpisodeData for #{showID}, #{seasonNumber}, #{episodeNumber}"
+  item = i for i in shows when i.show.ids.trakt == showID
+  # console.log "item: #{JSON.stringify item}"
   season = s for s in item.seasons when s.number == seasonNumber
+  unless season?
+    season =
+      number: seasonNumber
+      aired: 0
+      completed: 0
+      episodes: []
+  # console.log "season: #{JSON.stringify season}"
   episode = e for e in season.episodes when e.number == episodeNumber
+  # console.log "episode: #{JSON.stringify episode}"
+  unless episode?
+    episode =
+      number: episodeNumber
+      completed: false
+    season.episodes.push episode
+  console.log "Considering episode: #{JSON.stringify episode}"
 
   episode.seasonNumber = seasonNumber
   episode.episodeNumber = episodeNumber
   episode.showID = showID
+  episode.showTitle = item.show.title
 
-  unless episode.id? and episode.title? and episode.overview?
+  getOrFetchOverview = (success) ->
+    if episode.overview?
+      console.log "Overview already available"
+      success(episode)
+      return
+    console.log "fetching overview..."
+    traktvRequest "/search?id_type=trakt-episode&id=#{episode.episodeID}",
+      (response, status, req) ->
+        console.log "Fetched overview: #{response}"
+        if response
+          episode.overview = response[0].episode.overview
+        success(episode) if success?
+
+  fetchEpisodeIDAndTitle = (showID, seasonNumber, episodeNumber, successFetchEpisodeIDAndTitle) ->
     traktvRequest "/shows/#{showID}/seasons/#{seasonNumber}/episodes/#{episodeNumber}",
-    (response, status, req) ->
-      episode.id = response.ids.trakt
-      episode.title = response.title
+      (response, status, req) ->
+        console.log "fetchEpisodeIDAndTitle response: #{response}"
+        episode.episodeID = response.ids.trakt
+        episode.episodeTitle = response.title
 
-      if episode.overview?
-        callback(episode) if callback?
-      else
-        traktvRequest "/search?id_type=trakt-episode&id=#{episode.id}",
-          (response, status, req) ->
-            if response
-              episode.overview = response[0].episode.overview
-            callback(episode) if callback?
+        successFetchEpisodeIDAndTitle(episode) if successFetchEpisodeIDAndTitle?
 
-
-  traktvRequest "/shows/#{element.data.showID}/seasons/#{element.data.seasonNumber}/episodes/#{element.data.episodeNumber}",
-    (response, status, req) ->
-      showTitle = item.show.title for item in shows when item.show.ids.trakt == element.data.showID
-      detailedItemCard = new UI.Card(
-        title: showTitle
-        subtitle: "Season #{element.data.seasonNumber} Ep. #{element.data.episodeNumber}"
-        body: "Title: #{response.title}"
-        style: 'small'
-      )
-      detailedItemCard.show()
+  if episode.episodeID? and episode.episodeTitle?
+    console.log "going to fetch overview"
+    getOrFetchOverview callback
+  else
+    console.log "going to fetch ep id and title"
+    fetchEpisodeIDAndTitle showID, seasonNumber, episodeNumber,
+      (episode) ->
+        console.log "fetched id and title: #{JSON.stringify episode}"
+        getOrFetchOverview callback
 
 
 
@@ -280,10 +300,6 @@ displayToWatchMenu = (callback) ->
             completed: false
     toWatch
 
-  # console.log "item: #{key}: #{value}" for key, value of item for item in shows
-  # console.log "data: #{JSON.stringify data}"
-
-
   toWatchMenu = new UI.Menu
     sections:
       {
@@ -300,7 +316,18 @@ displayToWatchMenu = (callback) ->
       } for item in shows when isNextEpisodeForItemAired(item)
 
   toWatchMenu.on 'longSelect', (e) ->
+    element = e.item
     data = e.item.data
+    data.previousSubtitle = element.subtitle
+
+    element.subtitle =
+      if element.data.completed
+        "Unchecking..."
+      else
+        "Checking..."
+
+    toWatchMenu.item(e.sectionIndex, e.itemIndex, element)
+
     modifyCheckState
       showID: data.showID
       episodeNumber: data.episodeNumber
@@ -316,6 +343,9 @@ displayToWatchMenu = (callback) ->
         else
           element.data.completed = false
           element.icon = ICON_MENU_UNCHECKED
+
+        element.subtitle = element.data.previousSubtitle
+        delete element.data.previousSubtitle
 
         toWatchMenu.item(e.sectionIndex, e.itemIndex, element)
 
@@ -339,17 +369,17 @@ displayToWatchMenu = (callback) ->
 
   toWatchMenu.on 'select', (e) ->
     element = e.item
-    traktvRequest "/shows/#{element.data.showID}/seasons/#{element.data.seasonNumber}/episodes/#{element.data.episodeNumber}",
-      (response, status, req) ->
-        showTitle = item.show.title for item in shows when item.show.ids.trakt == element.data.showID
-        detailedItemCard = new UI.Card(
-          title: showTitle
-          subtitle: "Season #{element.data.seasonNumber} Ep. #{element.data.episodeNumber}"
-          body: "Title: #{response.title}"
-          style: 'small'
-        )
-        detailedItemCard.show()
-
+    data = element.data
+    getOrFetchEpisodeData data.showID, data.seasonNumber, data.episodeNumber, (episode) ->
+      detailedItemCard = new UI.Card(
+        title: episode.showTitle
+        subtitle: "Season #{episode.seasonNumber} Ep. #{episode.episodeNumber}"
+        body: "Title: #{episode.episodeTitle}\n\
+               Overview: #{episode.overview}"
+        style: 'small'
+        scrollable: true
+      )
+      detailedItemCard.show()
   toWatchMenu.show()
 
   callback() if callback?
@@ -371,9 +401,9 @@ displayUpcomingMenu = (callback) ->
                 seasonNumber: item.episode.season
                 episodeNumber: item.episode.number
 
-            } for item in items
+            } for item in items when moment(item.airs_at) >= moment()
         } for date, items of response
-      console.log "sections: #{JSON.stringify sections}"
+      # console.log "sections: #{JSON.stringify sections}"
 
       upcomingMenu = new UI.Menu(
         sections: sections
@@ -383,16 +413,29 @@ displayUpcomingMenu = (callback) ->
 
       upcomingMenu.on 'select', (e) ->
         element = e.item
-        traktvRequest "/shows/#{element.data.showID}/seasons/#{element.data.seasonNumber}/episodes/#{element.data.episodeNumber}",
-          (response, status, req) ->
-            showTitle = item.show.title for item in shows when item.show.ids.trakt == element.data.showID
-            detailedItemCard = new UI.Card(
-              title: showTitle
-              subtitle: "Season #{element.data.seasonNumber} Ep. #{element.data.episodeNumber}"
-              body: "Title: #{response.title}"
-              style: 'small'
-            )
-            detailedItemCard.show()
+        data = element.data
+        getOrFetchEpisodeData data.showID, data.seasonNumber, data.episodeNumber, (episode) ->
+          console.log "response for #{data.showID}, #{data.seasonNumber}, #{data.episodeNumber}"
+          console.log "--> #{JSON.stringify episode}"
+          detailedItemCard = new UI.Card(
+            title: episode.showTitle
+            subtitle: "Season #{episode.seasonNumber} Ep. #{episode.episodeNumber}"
+            body: "Title: #{episode.episodeTitle}\n\
+                   Overview: #{episode.overview}"
+            style: 'small'
+            scrollable: true
+          )
+          detailedItemCard.show()
+        # traktvRequest "/shows/#{element.data.showID}/seasons/#{element.data.seasonNumber}/episodes/#{element.data.episodeNumber}",
+        #   (response, status, req) ->
+        #     showTitle = item.show.title for item in shows when item.show.ids.trakt == element.data.showID
+        #     detailedItemCard = new UI.Card(
+        #       title: showTitle
+        #       subtitle: "Season #{element.data.seasonNumber} Ep. #{element.data.episodeNumber}"
+        #       body: "Title: #{response.title}"
+        #       style: 'small'
+        #     )
+        #     detailedItemCard.show()
       callback() if callback?
 
 displayShowsMenu = (callback) ->
@@ -438,20 +481,50 @@ displayShowsMenu = (callback) ->
     seasonsMenu.on 'select', (e) ->
       data = e.item.data
       season = s for s in item.seasons when s.number == data.seasonNumber
-      episodesMenu = new UI.Menu
-        sections: [{
-          items:
-            createToWatchMenuItem(
-              showID: data.showID
-              episodeTitle: "bo"
-              seasonNumber: data.seasonNumber
-              episodeNumber: episode.number
-              completed: false
-            ) for episode in season.episodes
-        }]
-      episodesMenu.show()
+      async.map(
+        season.episodes,
+        (ep, callbackResult) ->
+          getOrFetchEpisodeData data.showID, data.seasonNumber, ep.number,
+            (episode) -> callbackResult(null, episode)
+        (err, episodes) ->
+          console.log "------results of map: err #{err} --------------"
+          if err?
+            console.log "------results of map: err #{err} --------------"
+            return;
+          console.log "------results of map: 1st: #{JSON.stringify episodes[0]}"
+          episodesMenu = new UI.Menu
+            sections: [{
+              items:
+                {
+                  title: episode.episodeTitle
+                  subtitle: "Season #{episode.seasonNumber} Ep. #{episode.episodeNumber}"
+                  data:
+                    episodeTitle: episode.episodeTitle
+                    overview: episode.overview
+                    seasonNumber: episode.seasonNumber
+                    episodeNumber: episode.episodeNumber
+                    showID: episode.showID
+                    showTitle: episode.showTitle
+                } for episode in episodes
+            }]
+          episodesMenu.show()
+          episodesMenu.on 'select', (e) ->
+            data = e.item.data
+            detailedItemCard = new UI.Card(
+              title: data.showTitle
+              subtitle: "Season #{data.seasonNumber} Ep. #{data.episodeNumber}"
+              body: "Title: #{data.episodeTitle}\n\
+                     Overview: #{data.overview}"
+              style: 'small'
+              scrollable: true
+            )
+            detailedItemCard.show()
 
-  callback() if callback?
+          callback() if callback?
+        )
+
+
+
 
 initSettings = ->
   Settings.init()
@@ -470,10 +543,11 @@ mainMenu = new UI.Menu
       title: 'To watch'
       id: 'toWatch'
     }, {
-      title: 'Upcoming episodes'
+      title: 'Upcoming'
       id: 'upcoming'
     }, {
       title: 'My shows'
+      icon: 'images/icon_home.png'
       id: 'myShows'
     }, {
       title: 'Advanced'
