@@ -27,7 +27,7 @@ sleep = (ms) ->
 
 
 traktvRequest = (opt, success, failure) ->
-  # console.log "traktvRequest: opt: #{JSON.stringify opt}"
+  console.log "traktvRequest: opt: #{JSON.stringify opt}"
   # console.log success
   if typeof opt == 'string'
     opt = if opt.indexOf('http') == 0
@@ -69,12 +69,13 @@ reloadShow = (showID, success, failure) ->
   traktvRequest "/shows/#{showID}/progress/watched",
     (response, status, req) ->
       console.log "Reloading show #{showID}"
+      # console.log "response: #{JSON.stringify response}"
       item = i for i in shows when i.show.ids.trakt == showID
 
       item.next_episode = response.next_episode
       item.seasons = response.seasons
       success(item) if success?
-    failure if failure?
+    if failure? then failure else ->
 
 getToWatchList = (showList, callback) ->
   showListUpdated = showList[..]
@@ -155,13 +156,14 @@ modifyCheckState = (opt, success, failure) ->
     method: 'POST'
     data: request
     (response, status, req) ->
-      console.log "Check succeeded: #{JSON.stringify request}"
+      console.log "Check succeeded: req: #{JSON.stringify request}"
+      console.log "response: #{JSON.stringify response}"
       # console.log "#{index}: #{key}: #{value}" for key, value of index for index in shows
       for item in shows when item.show.ids.trakt == opt.showID
         for season in item.seasons when not opt.seasonNumber? or season.number == opt.seasonNumber
           for episode in season.episodes when not opt.episodeNumber? or episode.number == opt.episodeNumber
-            console.log "Marking as seen #{item.show.title} S#{season.number}E#{episode.number}"
             episode.completed = opt.completed
+            console.log "Marking as seen #{item.show.title} S#{season.number}E#{episode.number}, #{episode.completed}"
       success()
     (response, status, req) ->
       console.log "Check FAILURE"
@@ -336,10 +338,10 @@ displayToWatchMenu = (callback) ->
       showID: data.showID
       episodeNumber: data.episodeNumber
       seasonNumber: data.seasonNumber
-      completed: not e.item.completed
+      completed: not data.completed
       () ->
-        element = e.item
-        isNowCompleted = not element.data.completed
+        isNowCompleted = not data.completed
+        console.log "episode is now #{JSON.stringify e.item}"
 
         if isNowCompleted
           element.data.completed = true
@@ -357,6 +359,7 @@ displayToWatchMenu = (callback) ->
           # TODO: clean this mess using getEpisodeData
           reloadShow data.showID, (reloadedShow) ->
             console.log "RELOADED ShowID: #{reloadedShow.show.ids.trakt}, title: #{reloadedShow.show.title}"
+            # console.log "item: #{JSON.stringify reloadedShow}"
             if isNextEpisodeForItemAired(reloadedShow) and not element.isNextEpisodeListed
               element.isNextEpisodeListed = true
 
@@ -370,6 +373,11 @@ displayToWatchMenu = (callback) ->
               console.log "toWatchMenu.item(#{e.sectionIndex}, #{e.section.items.length}, #{JSON.stringify newItem}"
 
               toWatchMenu.item(e.sectionIndex, e.section.items.length, newItem)
+      () ->
+        element.subtitle = element.data.previousSubtitle
+        delete element.data.previousSubtitle
+
+        toWatchMenu.item(e.sectionIndex, e.itemIndex, element)
 
   toWatchMenu.on 'select', (e) ->
     element = e.item
