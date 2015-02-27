@@ -27,7 +27,7 @@ sleep = (ms) ->
 
 
 traktvRequest = (opt, success, failure) ->
-  console.log "traktvRequest: opt: #{JSON.stringify opt}"
+  # console.log "traktvRequest: opt: #{JSON.stringify opt}"
   # console.log success
   if typeof opt == 'string'
     opt = if opt.indexOf('http') == 0
@@ -217,7 +217,7 @@ createToWatchMenuItem = (opt) ->
 getOrFetchEpisodeData = (showID, seasonNumber, episodeNumber, callback) ->
   # toWatchMenu.on 'select', (e) ->
   # element = e.item
-  console.log "getOrFetchEpisodeData for #{showID}, #{seasonNumber}, #{episodeNumber}"
+  # console.log "getOrFetchEpisodeData for #{showID}, #{seasonNumber}, #{episodeNumber}"
   item = i for i in shows when i.show.ids.trakt == showID
   # console.log "item: #{JSON.stringify item}"
   season = s for s in item.seasons when s.number == seasonNumber
@@ -235,7 +235,7 @@ getOrFetchEpisodeData = (showID, seasonNumber, episodeNumber, callback) ->
       number: episodeNumber
       completed: false
     season.episodes.push episode
-  console.log "Considering episode: #{JSON.stringify episode}"
+  # console.log "Considering episode: #{JSON.stringify episode}"
 
   episode.seasonNumber = seasonNumber
   episode.episodeNumber = episodeNumber
@@ -244,13 +244,13 @@ getOrFetchEpisodeData = (showID, seasonNumber, episodeNumber, callback) ->
 
   getOrFetchOverview = (success) ->
     if episode.overview?
-      console.log "Overview already available"
+      # console.log "Overview already available"
       success(episode)
       return
-    console.log "fetching overview..."
+    # console.log "fetching overview..."
     traktvRequest "/search?id_type=trakt-episode&id=#{episode.episodeID}",
       (response, status, req) ->
-        console.log "Fetched overview: #{response}"
+        # console.log "Fetched overview: #{response}"
         if response
           episode.overview = response[0].episode.overview
         success(episode) if success?
@@ -258,20 +258,20 @@ getOrFetchEpisodeData = (showID, seasonNumber, episodeNumber, callback) ->
   fetchEpisodeIDAndTitle = (showID, seasonNumber, episodeNumber, successFetchEpisodeIDAndTitle) ->
     traktvRequest "/shows/#{showID}/seasons/#{seasonNumber}/episodes/#{episodeNumber}",
       (response, status, req) ->
-        console.log "fetchEpisodeIDAndTitle response: #{response}"
+        # console.log "fetchEpisodeIDAndTitle response: #{response}"
         episode.episodeID = response.ids.trakt
         episode.episodeTitle = response.title
 
         successFetchEpisodeIDAndTitle(episode) if successFetchEpisodeIDAndTitle?
 
   if episode.episodeID? and episode.episodeTitle?
-    console.log "going to fetch overview"
+    # console.log "going to fetch overview"
     getOrFetchOverview callback
   else
-    console.log "going to fetch ep id and title"
+    # console.log "going to fetch ep id and title"
     fetchEpisodeIDAndTitle showID, seasonNumber, episodeNumber,
       (episode) ->
-        console.log "fetched id and title: #{JSON.stringify episode}"
+        # console.log "fetched id and title: #{JSON.stringify episode}"
         getOrFetchOverview callback
 
 
@@ -419,8 +419,8 @@ displayUpcomingMenu = (callback) ->
         element = e.item
         data = element.data
         getOrFetchEpisodeData data.showID, data.seasonNumber, data.episodeNumber, (episode) ->
-          console.log "response for #{data.showID}, #{data.seasonNumber}, #{data.episodeNumber}"
-          console.log "--> #{JSON.stringify episode}"
+          # console.log "response for #{data.showID}, #{data.seasonNumber}, #{data.episodeNumber}"
+          # console.log "--> #{JSON.stringify episode}"
           detailedItemCard = new UI.Card(
             title: episode.showTitle
             subtitle: "Season #{episode.seasonNumber} Ep. #{episode.episodeNumber}"
@@ -491,11 +491,8 @@ displayShowsMenu = (callback) ->
           getOrFetchEpisodeData data.showID, data.seasonNumber, ep.number,
             (episode) -> callbackResult(null, episode)
         (err, episodes) ->
-          console.log "------results of map: err #{err} --------------"
           if err?
-            console.log "------results of map: err #{err} --------------"
             return;
-          console.log "------results of map: 1st: #{JSON.stringify episodes[0]}"
           episodesMenu = new UI.Menu
             sections: [{
               items:
@@ -592,6 +589,12 @@ mainMenu.on 'select', (e) ->
             action: ->
               localStorage.clear()
               initSettings()
+              notificationCard = new UI.Card(
+                title: 'Sign-in required'
+                body: 'Open the Pebble App and configure Pebble Shows.'
+              )
+              notificationCard.show()
+
               console.log "Local storage cleared"
           }, {
             title: 'Refresh'
