@@ -7,6 +7,9 @@ Emitter = require('emitter')
 CONFIG_BASE_URL = 'http://bobby.alessiobogon.com:8020/'
 ICON_MENU_UNCHECKED = 'images/icon_menu_unchecked.png'
 ICON_MENU_CHECKED = 'images/icon_menu_checked.png'
+ICON_MENU_CALENDAR = 'images/icon_calendar.png'
+ICON_MENU_EYE = 'images/icon_eye.png'
+ICON_MENU_HOME = 'images/icon_home.png'
 
 userDateFormat = "D MMMM YYYY"
 
@@ -42,7 +45,8 @@ traktvRequest = (opt, success, failure) ->
   accessToken = Settings.option 'accessToken'
   unless accessToken?
     displaySignInWindow()
-    failure("accessToken is needed")
+    failure("accessToken is needed") if failure?
+    return;
 
   ajax
     url: opt.url
@@ -59,7 +63,7 @@ traktvRequest = (opt, success, failure) ->
         console.log "Server says that authorization is required"
         displaySignInWindow()
       console.log "Request failure (#{status} #{opt.method} #{opt.url})"
-      failure(response, status, req)
+      failure(response, status, req) if failure?
 
 reloadShow = (showID, success, failure) ->
   traktvRequest "/shows/#{showID}/progress/watched",
@@ -524,36 +528,43 @@ displayShowsMenu = (callback) ->
         )
 
 
-
-
 initSettings = ->
   Settings.init()
   Settings.config {
-    url: CONFIG_BASE_URL
+    url: "#{CONFIG_BASE_URL}login"
     autoSave: true
   }, (e) ->
+    console.log "Returned from settings"
     signInWindow.hide()
     refreshModels()
 
 initSettings()
 
+ADVANCED_MENU = false
+
 mainMenu = new UI.Menu
   sections: [
     items: [{
       title: 'To watch'
+      icon: ICON_MENU_EYE
       id: 'toWatch'
     }, {
       title: 'Upcoming'
+      icon: ICON_MENU_CALENDAR
       id: 'upcoming'
     }, {
       title: 'My shows'
-      icon: 'images/icon_home.png'
+      icon: ICON_MENU_HOME
       id: 'myShows'
-    }, {
-      title: 'Advanced'
-      id: 'advanced'
     }]
   ]
+
+if ADVANCED_MENU
+  mainMenu.state.sections[0].items.push
+    title: 'Advanced'
+    id: 'advanced'
+
+mainMenu.show()
 
 mainMenu.on 'select', (e) ->
   switch e.item.id
@@ -590,5 +601,4 @@ mainMenu.on 'select', (e) ->
       advancedMenu.on 'select', (e) -> e.item.action()
       advancedMenu.show()
 
-mainMenu.show()
 refreshModels()
