@@ -20,12 +20,6 @@ updatesEmitter = new Emitter()
 signInWindow = undefined
 shows = undefined
 
-sleep = (ms) ->
-  unixtime_ms = new Date().getTime();
-  while(new Date().getTime() < unixtime_ms + ms)
-    1
-
-
 traktvRequest = (opt, success, failure) ->
   console.log "traktvRequest: opt: #{JSON.stringify opt}"
   # console.log success
@@ -535,7 +529,7 @@ displayShowsMenu = (callback) ->
 initSettings = ->
   Settings.init()
   Settings.config {
-    url: "#{CONFIG_BASE_URL}login"
+    url: "#{CONFIG_BASE_URL}"
     autoSave: true
   }, (e) ->
     console.log "Returned from settings"
@@ -544,7 +538,7 @@ initSettings = ->
 
 initSettings()
 
-ADVANCED_MENU = false
+
 
 mainMenu = new UI.Menu
   sections: [
@@ -560,13 +554,11 @@ mainMenu = new UI.Menu
       title: 'My shows'
       icon: ICON_MENU_HOME
       id: 'myShows'
+    }, {
+      title: 'Advanced'
+      id: 'advanced'
     }]
   ]
-
-if ADVANCED_MENU
-  mainMenu.state.sections[0].items.push
-    title: 'Advanced'
-    id: 'advanced'
 
 mainMenu.show()
 
@@ -590,20 +582,16 @@ mainMenu.on 'select', (e) ->
       advancedMenu = new UI.Menu
         sections: [
           items: [{
-            title: 'Reset localStorage'
+            title: 'Refresh shows'
+            action: -> refreshModels()
+            }, {
+            title: 'Reset local data'
             action: ->
               localStorage.clear()
               initSettings()
-              notificationCard = new UI.Card(
-                title: 'Sign-in required'
-                body: 'Open the Pebble App and configure Pebble Shows.'
-              )
-              notificationCard.show()
+              displaySignInWindow()
 
               console.log "Local storage cleared"
-          }, {
-            title: 'Refresh'
-            action: -> refreshModels()
           }]
         ]
       advancedMenu.on 'select', (e) -> e.item.action()
