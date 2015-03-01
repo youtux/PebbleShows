@@ -4,7 +4,7 @@ ajax = require('ajax')
 async = require('async')
 Emitter = require('emitter')
 
-CONFIG_BASE_URL = 'http://bobby.alessiobogon.com:8020/'
+CONFIG_BASE_URL = 'http://mario.alessiobogon.com:8020/'
 ICON_MENU_UNCHECKED = 'images/icon_menu_unchecked.png'
 ICON_MENU_CHECKED = 'images/icon_menu_checked.png'
 ICON_MENU_CALENDAR = 'images/icon_calendar.png'
@@ -528,9 +528,8 @@ displayShowsMenu = (callback) ->
               scrollable: true
             )
             detailedItemCard.show()
-
-          callback() if callback?
         )
+  callback() if callback?
 
 
 initSettings = ->
@@ -573,7 +572,7 @@ mainMenu.show()
 
 mainMenu.on 'select', (e) ->
   switch e.item.id
-    when 'toWatch', 'upcoming'
+    when 'toWatch', 'upcoming', 'myShows'
       e.item.subtitle = "Loading..."
       mainMenu.item(e.sectionIndex, e.itemIndex, e.item)
 
@@ -581,13 +580,11 @@ mainMenu.on 'select', (e) ->
         switch e.item.id
           when 'toWatch' then displayToWatchMenu
           when 'upcoming' then displayUpcomingMenu
+          when 'myShows' then displayShowsMenu
 
       displayFunction ->
         delete e.item.subtitle
         mainMenu.item(e.sectionIndex, e.itemIndex, e.item)
-
-    when 'myShows'
-      displayShowsMenu()
 
     when 'advanced'
       advancedMenu = new UI.Menu
