@@ -1,66 +1,70 @@
 {
-    "appKeys": {},
-    "capabilities": [
-        "configurable"
-    ],
-    "companyName": "youtux@gmail.com",
-    "longName": "Pebble Shows",
-    "projectType": "pebblejs",
-    "resources": {
-        "media": [
-            {
-                "file": "images/menu_icon.png",
-                "menuIcon": true,
-                "name": "IMAGE_MENU_ICON",
-                "type": "png"
-            },
-            {
-                "file": "images/icon_home.png",
-                "name": "ICON_HOME",
-                "type": "png"
-            },
-            {
-                "file": "images/icon_eye.png",
-                "name": "ICON_EYE",
-                "type": "png"
-            },
-            {
-                "file": "images/icon_calendar.png",
-                "name": "ICON_CALENDAR",
-                "type": "png"
-            },
-            {
-                "file": "images/icon_menu_checked.png",
-                "name": "ICON_MENU_CHECKED",
-                "type": "png"
-            },
-            {
-                "file": "images/icon_menu_unchecked.png",
-                "name": "ICON_MENU_UNCHECKED",
-                "type": "png"
-            },
-            {
-                "file": "images/logo_splash.png",
-                "name": "IMAGE_LOGO_SPLASH",
-                "type": "png"
-            },
-            {
-                "file": "images/tile_splash.png",
-                "name": "IMAGE_TILE_SPLASH",
-                "type": "png"
-            },
-            {
-                "file": "fonts/UbuntuMono-Regular.ttf",
-                "name": "MONO_FONT_14",
-                "type": "font"
-            }
-        ]
-    },
-    "shortName": "Shows",
-    "uuid": "1596d615-c853-438c-9852-df68ce14d915",
-    "versionCode": 1,
-    "versionLabel": "1.1",
-    "watchapp": {
-        "watchface": false
-    }
+  "appKeys": {},
+  "capabilities": [
+    "configurable"
+  ],
+  "companyName": "youtux@gmail.com",
+  "longName": "Pebble Shows",
+  "projectType": "pebblejs",
+  "resources": {
+    "media": [
+      {
+        "file": "images/menu_icon.png",
+        "menuIcon": true,
+        "name": "IMAGE_MENU_ICON",
+        "type": "png"
+      },
+      {
+        "file": "images/icon_home.png",
+        "name": "ICON_HOME",
+        "type": "png"
+      },
+      {
+        "file": "images/icon_eye.png",
+        "name": "ICON_EYE",
+        "type": "png"
+      },
+      {
+        "file": "images/icon_calendar.png",
+        "name": "ICON_CALENDAR",
+        "type": "png"
+      },
+      {
+        "file": "images/icon_menu_checked.png",
+        "name": "ICON_MENU_CHECKED",
+        "type": "png"
+      },
+      {
+        "file": "images/icon_menu_unchecked.png",
+        "name": "ICON_MENU_UNCHECKED",
+        "type": "png"
+      },
+      {
+        "file": "images/logo_splash.png",
+        "name": "IMAGE_LOGO_SPLASH",
+        "type": "png"
+      },
+      {
+        "file": "images/tile_splash.png",
+        "name": "IMAGE_TILE_SPLASH",
+        "type": "png"
+      },
+      {
+        "file": "fonts/UbuntuMono-Regular.ttf",
+        "name": "MONO_FONT_14",
+        "type": "font"
+      }
+    ]
+  },
+  "shortName": "Shows",
+  "uuid": "1596d615-c853-438c-9852-df68ce14d915",
+  "versionCode": 1,
+  "versionLabel": "1.1",
+  "watchapp": {
+    "watchface": false
+  },
+  "targetPlatforms": [
+    "aplite"
+  ],
+  "sdkVersion": "3"
 }
