@@ -4,7 +4,7 @@ ajax = require('ajax')
 async = require('async')
 Emitter = require('emitter')
 
-CONFIG_BASE_URL = 'http://mario.alessiobogon.com:8020/'
+CONFIG_BASE_URL = 'http://traktv-forwarder.herokuapp.com/'
 ICON_MENU_UNCHECKED = 'images/icon_menu_unchecked.png'
 ICON_MENU_CHECKED = 'images/icon_menu_checked.png'
 ICON_MENU_CALENDAR = 'images/icon_calendar.png'
