@@ -528,6 +528,9 @@ displayShowsMenu = (callback) ->
   callback() if callback?
 
 
+console.log "Version: #{VERSION}"
+
+
 initSettings = ->
   Settings.init()
   Settings.config {
