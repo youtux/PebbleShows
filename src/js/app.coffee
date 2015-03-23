@@ -4,6 +4,8 @@ ajax = require('ajax')
 async = require('async')
 Emitter = require('emitter')
 
+VERSION = "1.2"
+
 CONFIG_BASE_URL = 'http://traktv-forwarder.herokuapp.com/'
 ICON_MENU_UNCHECKED = 'images/icon_menu_unchecked.png'
 ICON_MENU_CHECKED = 'images/icon_menu_checked.png'
@@ -581,18 +583,22 @@ mainMenu.on 'select', (e) ->
     when 'advanced'
       advancedMenu = new UI.Menu
         sections: [
-          items: [{
-            title: 'Refresh shows'
-            action: -> refreshModels()
+          items: [
+            {
+              title: 'Refresh shows'
+              action: -> refreshModels()
             }, {
-            title: 'Reset local data'
-            action: ->
-              localStorage.clear()
-              initSettings()
-              displaySignInWindow()
+              title: 'Reset local data'
+              action: ->
+                localStorage.clear()
+                initSettings()
+                displaySignInWindow()
 
-              console.log "Local storage cleared"
-          }]
+                console.log "Local storage cleared"
+            }, {
+              title: "Version: #{VERSION}"
+            }
+          ]
         ]
       advancedMenu.on 'select', (e) -> e.item.action()
       advancedMenu.show()
