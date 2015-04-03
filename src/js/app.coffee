@@ -24,13 +24,14 @@ signInWindow = undefined
 shows = Settings.data 'shows'
 
 trakttv.on 'authorizationRequired', (reason) ->
-  signInWindow = new UI.Card(
-    title: 'Sign-in required'
-    body: 'Open the Pebble App and configure Pebble Shows.'
-  )
-  signInWindow.on 'click', 'back', ->
-    # No escape :)
-    return
+  unless signInWindow?
+    signInWindow = new UI.Card(
+      title: 'Sign-in required'
+      body: 'Open the Pebble App and configure Pebble Shows.'
+    )
+    signInWindow.on 'click', 'back', ->
+      # No escape :)
+      return
   signInWindow.show()
 
 
