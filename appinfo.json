@@ -64,7 +64,8 @@
     "watchface": false
   },
   "targetPlatforms": [
-    "aplite"
+    "aplite",
+    "basalt"
   ],
   "sdkVersion": "3"
 }

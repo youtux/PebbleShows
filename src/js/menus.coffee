@@ -15,23 +15,38 @@ isNextEpisodeForItemAired = (item) ->
     return false
   true
 
-class ToWatchMenu extends UI.Menu
+compareByKey = (key) ->
+  (a, b) ->
+    -1 if a[key] < b[key]
+    0 if a[key] == b[key]
+    1 if a[key] > b[key]
+
+compareByFunction = (keyFunction) ->
+  (a, b) ->
+    -1 if keyFunction(a) < keyFunction(b)
+    0 if keyFunction(a) == keyFunction(b)
+    1 if keyFunction(a) > keyFunction(b)
+
+class ToWatch
   constructor: (opt) ->
     @icons = opt.icons
     @menu = new UI.Menu(
       sections:[
         {
-          items: [{}]
+          items: [{
+            title: "Loading shows..."
+            }]
         }
       ]
     )
 
     @initHandlers()
 
-  show: -> @menu.show
+  show: -> @menu.show()
 
-  initHandlers: () ->
-    @menu.on 'longSelect', (e) ->
+  initHandlers: ->
+    @menu.on 'longSelect', (e) =>
+      console.log "element before the change: #{JSON.stringify e.item}"
       element = e.item
       data = e.item.data
       data.previousSubtitle = element.subtitle
@@ -42,14 +57,16 @@ class ToWatchMenu extends UI.Menu
         else
           "Checking..."
 
+      markAsCompleted = not element.data.completed
+
       @menu.item(e.sectionIndex, e.itemIndex, element)
 
-      @_modifyCheckState
+      trakttv.modifyCheckState
         showID: data.showID
         episodeNumber: data.episodeNumber
         seasonNumber: data.seasonNumber
-        completed: not data.completed
-        () ->
+        completed: markAsCompleted
+        () =>
           isNowCompleted = not data.completed
           console.log "episode is now #{JSON.stringify e.item}"
 
@@ -67,7 +84,7 @@ class ToWatchMenu extends UI.Menu
 
           if isNowCompleted and not element.isNextEpisodeListed
             # TODO: clean this mess using getEpisodeData
-            reloadShow data.showID, (reloadedShow) ->
+            trakttv.reloadShow data.showID, (reloadedShow) =>
               console.log "RELOADED ShowID: #{reloadedShow.show.ids.trakt}, title: #{reloadedShow.show.title}"
               # console.log "item: #{JSON.stringify reloadedShow}"
               if isNextEpisodeForItemAired(reloadedShow) and not element.isNextEpisodeListed
@@ -82,6 +99,7 @@ class ToWatchMenu extends UI.Menu
                 )
                 console.log "toWatchMenu.item(#{e.sectionIndex}, #{e.section.items.length}, #{JSON.stringify newItem}"
 
+                # TODO: use a function to add items
                 @menu.item(e.sectionIndex, e.section.items.length, newItem)
         () ->
           element.subtitle = element.data.previousSubtitle
@@ -105,50 +123,6 @@ class ToWatchMenu extends UI.Menu
 
     console.log "toWatchmenu created"
 
-  _modifyCheckState: (opt, success, failure) ->
-    # console.log("Check watched! episode: #{JSON.stringify(episode)}")
-    console.log "checkWatched: opt: #{JSON.stringify opt}"
-    if opt.episodeNumber? and not opt.seasonNumber?
-      failure()
-      return
-
-    opt.completed ?= true
-
-    request =
-      shows: [
-        ids: trakt: opt.showID
-        seasons: [{
-          number: opt.seasonNumber
-          episodes: [{
-            number: opt.episodeNumber
-          }] if opt.episodeNumber
-        }] if opt.seasonNumber
-      ]
-
-    action = if opt.completed
-      '/sync/history/remove'
-    else
-      '/sync/history'
-
-    # console.log "request: #{JSON.stringify request}"
-    trakttv.request
-      action: action
-      method: 'POST'
-      data: request
-      (response, status, req) ->
-        console.log "Check succeeded: req: #{JSON.stringify request}"
-        console.log "response: #{JSON.stringify response}"
-        # console.log "#{index}: #{key}: #{value}" for key, value of index for index in shows
-        for item in shows when item.show.ids.trakt == opt.showID
-          for season in item.seasons when not opt.seasonNumber? or season.number == opt.seasonNumber
-            for episode in season.episodes when not opt.episodeNumber? or episode.number == opt.episodeNumber
-              episode.completed = opt.completed
-              console.log "Marking as seen #{item.show.title} S#{season.number}E#{episode.number}, #{episode.completed}"
-        success()
-      (response, status, req) ->
-        console.log "Check FAILURE"
-        failure(response, status, req)
-
   _createItem: (opt) ->
     for key in ['showID', 'episodeTitle', 'seasonNumber', 'episodeNumber', 'completed']
       unless opt[key]?
@@ -165,7 +139,7 @@ class ToWatchMenu extends UI.Menu
         episodeNumber: opt.episodeNumber
         seasonNumber: opt.seasonNumber
         completed: opt.completed
-        isNextEpisodeListed: opt.isNextEpisodeListed
+        isNextEpisodeListed: opt.isNextEpisodeListed # TODO: delete me
     }
 
   update: (shows) ->
@@ -189,112 +163,167 @@ class ToWatchMenu extends UI.Menu
           title: "No shows to watch"
         ]
       ]
-    @menu.sections sections
+    console.log "Going to update toWatchMenu. Sections: #{JSON.stringify sections}"
+    sections.forEach (s, idx) => @menu.section(idx, s)
 
-menus.ToWatchMenu = ToWatchMenu
+menus.ToWatch = ToWatch
 
-menus.shows = {}
-
-model = {}
-
-compareByKey = (key) ->
-  (a, b) ->
-    -1 if a[key] < b[key]
-    0 if a[key] == b[key]
-    1 if a[key] > b[key]
-
-compareByFunction = (keyFunction) ->
-  (a, b) ->
-    -1 if keyFunction(a) < keyFunction(b)
-    0 if keyFunction(a) == keyFunction(b)
-    1 if keyFunction(a) > keyFunction(b)
-
-menus.shows.updateShowsMenu = (menu, show_list) ->
-
-  sortedShows = show_list[..]
-  sortedShows.sort compareByFunction (e) -> moment(e.last_watched_at)
-
-  model.show_list = sortedShows
-
-  sections = [
-    items:
-      {
-        title: item.show.title
-        data:
-          showID: item.show.ids.trakt
-      } for item in model.show_list
-  ]
-
-  menu.sections sections
-  console.log "showsMenu updated"
-
-menus.shows.createShowsMenu = () ->
-  showsMenu = new UI.Menu
-    sections: [
-      items: [
+class MyShows
+  constructor: () ->
+    @menu = new UI.Menu(
+      sections:[
         {
-          title: "No shows"
+          items: [{
+            title: "Loading shows..."
+            }]
         }
       ]
+    )
+
+    @initHandlers()
+
+  show: -> @menu.show()
+
+  initHandlers: ->
+    @menu.on 'select', (e) =>
+      data = e.item.data
+      item = i for i in @show_list when i.show.ids.trakt == data.showID
+      seasonsMenu = new UI.Menu
+        sections: [{
+          items:
+            {
+              title: "Season #{season.number}"
+              data:
+                showID: data.showID
+                seasonNumber: season.number
+            } for season in item.seasons
+        }]
+
+      seasonsMenu.show()
+
+      seasonsMenu.on 'select', (e) ->
+        data = e.item.data
+        season = s for s in item.seasons when s.number == data.seasonNumber
+        async.map(
+          season.episodes,
+          (ep, cb) ->
+            trakttv.getOrFetchEpisodeData data.showID, data.seasonNumber, ep.number,
+              (episodes) -> cb(null, episodes)
+          (err, episodes) ->
+            if err?
+              return;
+            episodesMenu = new UI.Menu
+              sections: [{
+                items:
+                  {
+                    title: episode.episodeTitle
+                    subtitle: "Season #{episode.seasonNumber} Ep. #{episode.episodeNumber}"
+                    data:
+                      episodeTitle: episode.episodeTitle
+                      overview: episode.overview
+                      seasonNumber: episode.seasonNumber
+                      episodeNumber: episode.episodeNumber
+                      showID: episode.showID
+                      showTitle: episode.showTitle
+                  } for episode in episodes
+              }]
+            episodesMenu.show()
+            episodesMenu.on 'select', (e) ->
+              data = e.item.data
+              detailedItemCard = new UI.Card(
+                title: data.showTitle
+                subtitle: "Season #{data.seasonNumber} Ep. #{data.episodeNumber}"
+                body: "Title: #{data.episodeTitle}\n\
+                       Overview: #{data.overview}"
+                style: 'small'
+                scrollable: true
+              )
+              detailedItemCard.show()
+          )
+  update: (shows) ->
+    sortedShows = shows[..]
+    sortedShows.sort compareByFunction (e) -> moment(e.last_watched_at)
+
+    @show_list = sortedShows
+
+    sections = [
+      items:
+        {
+          title: item.show.title
+          data:
+            showID: item.show.ids.trakt
+        } for item in @show_list
     ]
 
-  showsMenu.on 'select', (e) ->
-    data = e.item.data
-    item = i for i in model.show_list when i.show.ids.trakt == data.showID
-    seasonsMenu = new UI.Menu
-      sections: [{
+    sections.forEach (s, idx) => @menu.section(idx, s)
+    console.log "showsMenu updated"
+
+menus.MyShows = MyShows
+
+class Upcoming
+  constructor: (opt)->
+    @daysWindow = opt.days || 7;
+    @fromDate = moment(opt.fromDate).format('YYYY-MM-DD')
+    @userDateFormat = opt.userDateFormat || "D MMMM YYYY"
+    @menu = new UI.Menu(
+      sections:[
+        {
+          items: [{
+            title: "Loading Calendar..."
+            }]
+        }
+      ]
+    )
+
+    @initHandlers()
+    @reload()
+
+  update: (calendar) ->
+    console.log "Updating UpcomingMenu: #{JSON.stringify calendar}"
+    sections =
+      {
+        title: moment(date).format(@userDateFormat)
         items:
           {
-            title: "Season #{season.number}"
+            title: item.show.title
+            subtitle: "S#{item.episode.season}E#{item.episode.number} | #{moment(item.airs_at).format('HH:MM')}"
             data:
-              showID: data.showID
-              seasonNumber: season.number
-          } for season in item.seasons
-      }]
+              showID: item.show.ids.trakt
+              seasonNumber: item.episode.season
+              episodeNumber: item.episode.number
 
-    seasonsMenu.show()
+          } for item in items when moment(item.airs_at).isAfter(@fromDate)
+      } for date, items of calendar
 
-    seasonsMenu.on 'select', (e) ->
-      data = e.item.data
-      season = s for s in item.seasons when s.number == data.seasonNumber
-      async.map(
-        season.episodes,
-        (ep, callbackResult) ->
-          trakttv.getOrFetchEpisodeData data.showID, data.seasonNumber, ep.number,
-            (episode) -> callbackResult(null, episode)
-        (err, episodes) ->
-          if err?
-            return;
-          episodesMenu = new UI.Menu
-            sections: [{
-              items:
-                {
-                  title: episode.episodeTitle
-                  subtitle: "Season #{episode.seasonNumber} Ep. #{episode.episodeNumber}"
-                  data:
-                    episodeTitle: episode.episodeTitle
-                    overview: episode.overview
-                    seasonNumber: episode.seasonNumber
-                    episodeNumber: episode.episodeNumber
-                    showID: episode.showID
-                    showTitle: episode.showTitle
-                } for episode in episodes
-            }]
-          episodesMenu.show()
-          episodesMenu.on 'select', (e) ->
-            data = e.item.data
-            detailedItemCard = new UI.Card(
-              title: data.showTitle
-              subtitle: "Season #{data.seasonNumber} Ep. #{data.episodeNumber}"
-              body: "Title: #{data.episodeTitle}\n\
-                     Overview: #{data.overview}"
-              style: 'small'
-              scrollable: true
-            )
-            detailedItemCard.show()
+    console.log "---- #{JSON.stringify sections}"
+
+    @menu.section(idx, s) for s, idx in sections
+    # sections.forEach (s, idx) => @menu.section(idx, s)
+
+  reload: ->
+    trakttv.request "/calendars/shows/#{@fromDate}/#{@daysWindow}",
+      (response, status, req) => @update(response)
+
+  show: ->
+    @menu.show()
+    @reload()
+
+  initHandlers: ->
+    @menu.on 'select', (e) ->
+      element = e.item
+      data = element.data
+      traktv.getOrFetchEpisodeData data.showID, data.seasonNumber, data.episodeNumber, (episode) ->
+        # console.log "response for #{data.showID}, #{data.seasonNumber}, #{data.episodeNumber}"
+        # console.log "--> #{JSON.stringify episode}"
+        detailedItemCard = new UI.Card(
+          title: episode.showTitle
+          subtitle: "Season #{episode.seasonNumber} Ep. #{episode.episodeNumber}"
+          body: "Title: #{episode.episodeTitle}\n\
+                 Overview: #{episode.overview}"
+          style: 'small'
+          scrollable: true
         )
-
-  showsMenu
-
+        detailedItemCard.show()
+menus.Upcoming = Upcoming
 
 module.exports = menus

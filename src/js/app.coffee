@@ -13,15 +13,12 @@ ICON_MENU_CALENDAR = 'images/icon_calendar.png'
 ICON_MENU_EYE = 'images/icon_eye.png'
 ICON_MENU_HOME = 'images/icon_home.png'
 
-userDateFormat = "D MMMM YYYY"
-
 Settings.option 'accessToken', '3e391f60e4914df9177042c0bdcec849ef2f039896d28c13c7adef61720eb50a'
 
 console.log "accessToken: #{Settings.option 'accessToken'}"
 
 
 signInWindow = undefined
-shows = Settings.data 'shows'
 
 trakttv.on 'authorizationRequired', (reason) ->
   unless signInWindow?
@@ -33,75 +30,6 @@ trakttv.on 'authorizationRequired', (reason) ->
       # No escape :)
       return
   signInWindow.show()
-
-
-
-
-# {
-#   episode: 12
-#   season: 2
-# } or undefined
-firstUnwatchedEpisode = (show) ->
-  seasons = show.seasons[..]
-  seasons.sort compareByKey('number')
-  for season in seasons
-    # console.log "considering #{show.show.title}, #{JSON.stringify seasons}"
-    episodes = season.episodes[..]
-    episodes.sort(compareByKey('number'))
-    for episode in episodes
-      unless episode.completed == true
-        return {
-          episodeNumber: episode.number
-          seasonNumber: season.number
-        }
-
-
-displayUpcomingMenu = (callback) ->
-  startingDate = moment().format('YYYY-MM-DD')
-  days = 7
-  trakttv.request "/calendars/shows/#{startingDate}/#{days}",
-    (response, status, req)->
-      sections =
-        {
-          title: moment(date).format(userDateFormat)
-          items:
-            {
-              title: item.show.title
-              subtitle: "S#{item.episode.season}E#{item.episode.number} | #{moment(item.airs_at).format('HH:MM')}"
-              data:
-                showID: item.show.ids.trakt
-                seasonNumber: item.episode.season
-                episodeNumber: item.episode.number
-
-            } for item in items when moment(item.airs_at) >= moment()
-        } for date, items of response
-      # console.log "sections: #{JSON.stringify sections}"
-
-      upcomingMenu = new UI.Menu(
-        sections: sections
-      )
-
-      upcomingMenu.show()
-
-      upcomingMenu.on 'select', (e) ->
-        element = e.item
-        data = element.data
-        getOrFetchEpisodeData data.showID, data.seasonNumber, data.episodeNumber, (episode) ->
-          # console.log "response for #{data.showID}, #{data.seasonNumber}, #{data.episodeNumber}"
-          # console.log "--> #{JSON.stringify episode}"
-          detailedItemCard = new UI.Card(
-            title: episode.showTitle
-            subtitle: "Season #{episode.seasonNumber} Ep. #{episode.episodeNumber}"
-            body: "Title: #{episode.episodeTitle}\n\
-                   Overview: #{episode.overview}"
-            style: 'small'
-            scrollable: true
-          )
-          detailedItemCard.show()
-      callback() if callback?
-
-
-
 
 console.log "Version: #{VERSION}"
 
@@ -119,18 +47,22 @@ initSettings = ->
 initSettings()
 
 
-toWatchMenu = new menus.ToWatchMenu(
+toWatchMenu = new menus.ToWatch(
   icons:
     checked: ICON_MENU_CHECKED
     unchecked: ICON_MENU_UNCHECKED
 )
 
-showsMenu = menus.shows.createShowsMenu()
+myShowsMenu = new menus.MyShows()
+
+upcomingMenu = new menus.Upcoming(days: 14)
 
 trakttv.on 'update', 'shows', (shows) ->
   console.log "new update fired"
   toWatchMenu.update(shows)
-  menus.shows.updateShowsMenu(showsMenu, shows)
+  myShowsMenu.update(shows)
+
+trakttv.refreshModels()
 
 mainMenu = new UI.Menu
   sections: [
@@ -160,11 +92,12 @@ mainMenu.on 'select', (e) ->
       switch e.item.id
         when 'toWatch'
           trakttv.refreshModels()
-          toWatchMenu.menu.show()
-        when 'upcoming' then displayUpcomingMenu
+          toWatchMenu.show()
+        when 'upcoming'
+          upcomingMenu.show()
         when 'myShows'
           trakttv.refreshModels()
-          showsMenu.show()
+          myShowsMenu.show()
 
       # displayFunction ->
       #   delete e.item.subtitle

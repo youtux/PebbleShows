@@ -31,22 +31,24 @@ trakttv.request = (opt, success, failure) ->
   unless accessToken?
     events.emit 'authorizationRequired', 'Missing access token'
 
-  ajax
-    url: opt.url
-    type: 'json'
-    headers:
-      'trakt-api-version': 2
-      'trakt-api-key': '16fc8c04f10ebdf6074611891c7ce2727b4fcae3d2ab2df177625989543085e9'
-      Authorization: "Bearer #{accessToken}"
-    method: opt.method
-    data: opt.data
-    success
-    (response, status, req) ->
-      if status == 401
-        console.log "Server says that authorization is required"
-        events.emit 'authorizationRequired', 'Authorization required from server'
-      console.log "Request failure (#{status} #{opt.method} #{opt.url})"
-      failure? response, status, req
+  setTimeout(
+    -> ajax
+      url: opt.url
+      type: 'json'
+      headers:
+        'trakt-api-version': 2
+        'trakt-api-key': '16fc8c04f10ebdf6074611891c7ce2727b4fcae3d2ab2df177625989543085e9'
+        Authorization: "Bearer #{accessToken}"
+      method: opt.method
+      data: opt.data
+      success
+      (response, status, req) ->
+        if status == 401
+          console.log "Server says that authorization is required"
+          events.emit 'authorizationRequired', 'Authorization required from server'
+        console.log "Request failure (#{status} #{opt.method} #{opt.url})"
+        failure? response, status, req
+    0)
 
 trakttv.refreshModels = (cb) ->
   console.log "refreshing models"
@@ -92,6 +94,9 @@ trakttv.reloadShow = (showID, success, failure) ->
       item.next_episode = response.next_episode
       item.seasons = response.seasons
       Settings.data shows: shows
+
+      events.emit 'update', 'show', item
+
       success? item
     failure
 
@@ -156,5 +161,49 @@ trakttv.getOrFetchEpisodeData = (showID, seasonNumber, episodeNumber, callback) 
       (episode) ->
         # console.log "fetched id and title: #{JSON.stringify episode}"
         getOrFetchOverview callback
+
+trakttv.modifyCheckState = (opt, success, failure) ->
+  # console.log("Check watched! episode: #{JSON.stringify(episode)}")
+  console.log "checkWatched: opt: #{JSON.stringify opt}"
+  if opt.episodeNumber? and not opt.seasonNumber?
+    throw new Error("Not enough data given: #{JSON.stringify opt}")
+    return
+
+  opt.completed ?= true
+
+  request =
+    shows: [
+      ids: trakt: opt.showID
+      seasons: [{
+        number: opt.seasonNumber
+        episodes: [{
+          number: opt.episodeNumber
+        }] if opt.episodeNumber
+      }] if opt.seasonNumber
+    ]
+
+  action = if opt.completed
+    '/sync/history'
+  else
+    '/sync/history/remove'
+
+  console.log "request: POST #{action} params:#{JSON.stringify request}"
+  trakttv.request
+    action: action
+    method: 'POST'
+    data: request
+    (response, status, req) ->
+      console.log "Check succeeded: req: #{JSON.stringify request}"
+      console.log "response: #{JSON.stringify response}"
+      # console.log "#{index}: #{key}: #{value}" for key, value of index for index in shows
+      for item in shows when item.show.ids.trakt == opt.showID
+        for season in item.seasons when not opt.seasonNumber? or season.number == opt.seasonNumber
+          for episode in season.episodes when not opt.episodeNumber? or episode.number == opt.episodeNumber
+            episode.completed = opt.completed
+            console.log "Marking as seen #{item.show.title} S#{season.number}E#{episode.number}, #{episode.completed}"
+      success()
+    (response, status, req) ->
+      console.log "Check FAILURE"
+      failure(response, status, req)
 
 module.exports = trakttv
