@@ -13,7 +13,6 @@ ICON_MENU_CALENDAR = 'images/icon_calendar.png'
 ICON_MENU_EYE = 'images/icon_eye.png'
 ICON_MENU_HOME = 'images/icon_home.png'
 
-Settings.option 'accessToken', '3e391f60e4914df9177042c0bdcec849ef2f039896d28c13c7adef61720eb50a'
 
 console.log "accessToken: #{Settings.option 'accessToken'}"
 
