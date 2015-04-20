@@ -41,7 +41,7 @@ initSettings = ->
   }, (e) ->
     console.log "Returned from settings"
     signInWindow.hide()
-    trakttv.refreshModels()
+    trakttv.fetchToWatchList()
 
 initSettings()
 
@@ -61,7 +61,7 @@ trakttv.on 'update', 'shows', (shows) ->
   toWatchMenu.update(shows)
   myShowsMenu.update(shows)
 
-trakttv.refreshModels()
+trakttv.fetchToWatchList()
 
 mainMenu = new UI.Menu
   sections: [
@@ -90,12 +90,11 @@ mainMenu.on 'select', (e) ->
     when 'toWatch', 'upcoming', 'myShows'
       switch e.item.id
         when 'toWatch'
-          trakttv.refreshModels()
+          trakttv.fetchToWatchList()
           toWatchMenu.show()
         when 'upcoming'
           upcomingMenu.show()
         when 'myShows'
-          trakttv.refreshModels()
           myShowsMenu.show()
 
       # displayFunction ->
@@ -108,7 +107,7 @@ mainMenu.on 'select', (e) ->
           items: [
             {
               title: 'Refresh shows'
-              action: -> trakttv.refreshModels()
+              action: -> trakttv.fetchToWatchList()
             }, {
               title: 'Reset local data'
               action: ->
@@ -124,7 +123,3 @@ mainMenu.on 'select', (e) ->
         ]
       advancedMenu.on 'select', (e) -> e.item.action()
       advancedMenu.show()
-
-trakttv.refreshModels()
-
-# TODO: try a trakttv request, if fails display sign in window

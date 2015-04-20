@@ -1,13 +1,14 @@
 ajax = require('ajax')
 Settings = require('settings')
 Emitter = require('emitter')
-
 async = require('async')
+
+shows = Settings.data 'shows'
+events = new Emitter()
 
 trakttv = {}
 
-events = new Emitter()
-shows = Settings.data 'shows'
+trakttv.BASE_URL = 'https://api-v2launch.trakt.tv'
 
 trakttv.on = (args...) -> events.on(args...)
 
@@ -25,66 +26,58 @@ trakttv.request = (opt, success, failure) ->
   if opt.action[0] == '/'
     opt.action = opt.action[1..]
 
-  opt.url ?= "http://api-v2launch.trakt.tv/#{opt.action}"
+  opt.url ?= "#{trakttv.BASE_URL}/#{opt.action}"
 
   accessToken = Settings.option 'accessToken'
   unless accessToken?
     events.emit 'authorizationRequired', 'Missing access token'
 
-  setTimeout(
-    -> ajax
-      url: opt.url
-      type: 'json'
-      headers:
-        'trakt-api-version': 2
-        'trakt-api-key': '16fc8c04f10ebdf6074611891c7ce2727b4fcae3d2ab2df177625989543085e9'
-        Authorization: "Bearer #{accessToken}"
-      method: opt.method
-      data: opt.data
-      success
-      (response, status, req) ->
-        if status == 401
-          console.log "Server says that authorization is required"
-          events.emit 'authorizationRequired', 'Authorization required from server'
-        console.log "Request failure (#{status} #{opt.method} #{opt.url})"
-        failure? response, status, req
-    0)
+  ajax
+    url: opt.url
+    type: 'json'
+    headers:
+      'trakt-api-version': 2
+      'trakt-api-key': '16fc8c04f10ebdf6074611891c7ce2727b4fcae3d2ab2df177625989543085e9'
+      Authorization: "Bearer #{accessToken}"
+    method: opt.method
+    data: opt.data
+    success
+    (response, status, req) ->
+      if status == 401
+        console.log "Server says that authorization is required"
+        events.emit 'authorizationRequired', 'Authorization required from server'
+      console.log "Request failure (#{status} #{opt.method} #{opt.url})"
+      failure? response, status, req
 
-trakttv.refreshModels = (cb) ->
+
+trakttv.getOrFetchShows = (cb) ->
+  if shows
+    return cb(null, shows)
   console.log "refreshing models"
   trakttv.request '/sync/watched/shows', (response, status, req) ->
     # console.log "Returned shows: #{JSON.stringify shows.map (e)->e.show}"
     shows = response
     Settings.data shows: shows
-    trakttv.getToWatchList response, cb
+    # trakttv.getToWatchList response, cb
+    cb(null, shows)
 
-trakttv.getToWatchList = (callback) ->
-  async.each(
-    shows,
-    (item, doneItem) ->
-      trakttv.request "/shows/#{item.show.ids.trakt}/progress/watched",
-        (response, status, req) ->
-          # console.log "returned: #{JSON.stringify response.seasons}"
-          item.next_episode = response.next_episode
-          item.seasons = response.seasons
-          Settings.data shows: shows
-
-          events.emit 'update', 'show', item
-
-          # for season in item.seasons
-          #   for episode in season.episodes
-          #     episode.completed ?= false
-          doneItem()
-
-        (response, status, req) ->
-          doneItem()
-    (err) ->
-      events.emit 'update', 'shows', shows
-      callback? shows
-  )
+trakttv.fetchToWatchList = (cb) ->
+  trakttv.getOrFetchShows (err, shows) ->
+    async.each(
+      shows,
+      (item, doneItem) ->
+        trakttv.fetchShowProgress item.show.ids.trakt,
+          (response) -> doneItem(),
+          (response) ->
+            console.log "Failed: #{response}"
+            doneItem()
+      (err) ->
+        events.emit 'update', 'shows', shows
+        cb? err, shows
+    )
 
 
-trakttv.reloadShow = (showID, success, failure) ->
+trakttv.fetchShowProgress = (showID, success, failure) ->
   trakttv.request "/shows/#{showID}/progress/watched",
     (response, status, req) ->
       console.log "Reloading show #{showID}"

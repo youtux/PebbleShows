@@ -84,7 +84,7 @@ class ToWatch
 
           if isNowCompleted and not element.isNextEpisodeListed
             # TODO: clean this mess using getEpisodeData
-            trakttv.reloadShow data.showID, (reloadedShow) =>
+            trakttv.fetchShowProgress data.showID, (reloadedShow) =>
               console.log "RELOADED ShowID: #{reloadedShow.show.ids.trakt}, title: #{reloadedShow.show.title}"
               # console.log "item: #{JSON.stringify reloadedShow}"
               if isNextEpisodeForItemAired(reloadedShow) and not element.isNextEpisodeListed
@@ -128,8 +128,8 @@ class ToWatch
       unless opt[key]?
         console.log "ERROR: #{key} not in #{JSON.stringify opt}"
         return
-    console.log "opt.completed: #{opt.completed}"
-    console.log "icon chosed: " + JSON.stringify @icons
+    # console.log "opt.completed: #{opt.completed}"
+    # console.log "icon chosed: " + JSON.stringify @icons
     {
       title: opt.episodeTitle
       subtitle: "Season #{opt.seasonNumber} Ep. #{opt.episodeNumber}"
@@ -163,8 +163,8 @@ class ToWatch
           title: "No shows to watch"
         ]
       ]
-    console.log "Going to update toWatchMenu. Sections: #{JSON.stringify sections}"
-    sections.forEach (s, idx) => @menu.section(idx, s)
+    console.log "Updating toWatch"
+    @menu.section(idx, s) for s, idx in sections
 
 menus.ToWatch = ToWatch
 
@@ -255,7 +255,7 @@ class MyShows
         } for item in @show_list
     ]
 
-    sections.forEach (s, idx) => @menu.section(idx, s)
+    @menu.section(idx, s) for s, idx in sections
     console.log "showsMenu updated"
 
 menus.MyShows = MyShows
@@ -279,7 +279,7 @@ class Upcoming
     @reload()
 
   update: (calendar) ->
-    console.log "Updating UpcomingMenu: #{JSON.stringify calendar}"
+    # console.log "Updating UpcomingMenu: #{JSON.stringify calendar}"
     sections =
       {
         title: moment(date).format(@userDateFormat)
@@ -295,7 +295,7 @@ class Upcoming
           } for item in items when moment(item.airs_at).isAfter(@fromDate)
       } for date, items of calendar
 
-    console.log "---- #{JSON.stringify sections}"
+    # console.log "---- #{JSON.stringify sections}"
 
     @menu.section(idx, s) for s, idx in sections
     # sections.forEach (s, idx) => @menu.section(idx, s)
@@ -312,7 +312,7 @@ class Upcoming
     @menu.on 'select', (e) ->
       element = e.item
       data = element.data
-      traktv.getOrFetchEpisodeData data.showID, data.seasonNumber, data.episodeNumber, (episode) ->
+      trakttv.getOrFetchEpisodeData data.showID, data.seasonNumber, data.episodeNumber, (episode) ->
         # console.log "response for #{data.showID}, #{data.seasonNumber}, #{data.episodeNumber}"
         # console.log "--> #{JSON.stringify episode}"
         detailedItemCard = new UI.Card(
