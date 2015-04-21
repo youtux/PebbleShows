@@ -1,6 +1,7 @@
 UI = require('ui')
 trakttv = require('trakttv')
 async = require('async')
+Settings = require('settings')
 
 menus = {}
 
@@ -265,6 +266,7 @@ class Upcoming
     @daysWindow = opt.days || 7;
     @fromDate = moment(opt.fromDate).format('YYYY-MM-DD')
     @userDateFormat = opt.userDateFormat || "D MMMM YYYY"
+
     @menu = new UI.Menu(
       sections:[
         {
@@ -275,10 +277,13 @@ class Upcoming
       ]
     )
 
+    if Settings.data('calendar')?
+      @update()
+
     @initHandlers()
     @reload()
 
-  update: (calendar) ->
+  update: () ->
     # console.log "Updating UpcomingMenu: #{JSON.stringify calendar}"
     sections =
       {
@@ -293,7 +298,7 @@ class Upcoming
               episodeNumber: item.episode.number
 
           } for item in items when moment(item.airs_at).isAfter(@fromDate)
-      } for date, items of calendar
+      } for date, items of Settings.data 'calendar'
 
     # console.log "---- #{JSON.stringify sections}"
 
@@ -302,11 +307,15 @@ class Upcoming
 
   reload: ->
     trakttv.request "/calendars/shows/#{@fromDate}/#{@daysWindow}",
-      (response, status, req) => @update(response)
+      (response, status, req) =>
+        Settings.data 'calendar': response
+        @update()
+      (response, status, req) =>
+        console.log "Failed to fetch the calendar"
+
 
   show: ->
     @menu.show()
-    @reload()
 
   initHandlers: ->
     @menu.on 'select', (e) ->
@@ -324,6 +333,7 @@ class Upcoming
           scrollable: true
         )
         detailedItemCard.show()
+
 menus.Upcoming = Upcoming
 
 module.exports = menus

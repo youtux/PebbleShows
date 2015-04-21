@@ -97,10 +97,6 @@ mainMenu.on 'select', (e) ->
         when 'myShows'
           myShowsMenu.show()
 
-      # displayFunction ->
-      #   delete e.item.subtitle
-      #   mainMenu.item(e.sectionIndex, e.itemIndex, e.item)
-
     when 'advanced'
       advancedMenu = new UI.Menu
         sections: [
