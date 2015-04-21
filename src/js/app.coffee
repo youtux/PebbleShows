@@ -123,3 +123,5 @@ mainMenu.on 'select', (e) ->
         ]
       advancedMenu.on 'select', (e) -> e.item.action()
       advancedMenu.show()
+
+require('birthday')
