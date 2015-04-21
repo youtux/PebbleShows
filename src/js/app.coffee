@@ -4,7 +4,7 @@ Settings = require('settings')
 trakttv = require('trakttv')
 menus = require('menus')
 
-VERSION = "1.2"
+VERSION = "1.3"
 
 CONFIG_BASE_URL = 'http://traktv-forwarder.herokuapp.com/'
 ICON_MENU_UNCHECKED = 'images/icon_menu_unchecked.png'
