@@ -1,36 +1,31 @@
 UI = require('ui')
 Settings = require('settings')
+Wakeup = require('wakeup')
 
 trakttv = require('trakttv')
 menus = require('menus')
+cards = require('cards')
+timeline = require('timeline')
 
 VERSION = "1.3"
 
 CONFIG_BASE_URL = 'http://traktv-forwarder.herokuapp.com/'
-ICON_MENU_UNCHECKED = 'images/icon_menu_unchecked.png'
-ICON_MENU_CHECKED = 'images/icon_menu_checked.png'
-ICON_MENU_CALENDAR = 'images/icon_calendar.png'
-ICON_MENU_EYE = 'images/icon_eye.png'
-ICON_MENU_HOME = 'images/icon_home.png'
 
 
 console.log "accessToken: #{Settings.option 'accessToken'}"
+console.log "Version: #{VERSION}"
 
 
-signInWindow = undefined
+signInWindow = new UI.Card(
+    title: 'Sign-in required'
+    body: 'Open the Pebble App and configure Pebble Shows.'
+  )
+signInWindow.on 'click', 'back', ->
+  # No escape :)
+  return
 
 trakttv.on 'authorizationRequired', (reason) ->
-  unless signInWindow?
-    signInWindow = new UI.Card(
-      title: 'Sign-in required'
-      body: 'Open the Pebble App and configure Pebble Shows.'
-    )
-    signInWindow.on 'click', 'back', ->
-      # No escape :)
-      return
   signInWindow.show()
-
-console.log "Version: #{VERSION}"
 
 
 initSettings = ->
@@ -46,78 +41,77 @@ initSettings = ->
 initSettings()
 
 
-toWatchMenu = new menus.ToWatch(
-  icons:
-    checked: ICON_MENU_CHECKED
-    unchecked: ICON_MENU_UNCHECKED
-)
-
+toWatchMenu = new menus.ToWatch()
 myShowsMenu = new menus.MyShows()
-
 upcomingMenu = new menus.Upcoming(days: 14)
+mainMenu = new menus.Main()
 
 trakttv.on 'update', 'shows', (shows) ->
   console.log "new update fired"
   toWatchMenu.update(shows)
   myShowsMenu.update(shows)
+  for item in shows
+    showID = item.show.ids.trakt
+    timeline.subscribe(showID)
 
-trakttv.fetchToWatchList()
-
-mainMenu = new UI.Menu
-  sections: [
-    items: [{
-      title: 'To watch'
-      icon: ICON_MENU_EYE
-      id: 'toWatch'
-    }, {
-      title: 'Upcoming'
-      icon: ICON_MENU_CALENDAR
-      id: 'upcoming'
-    }, {
-      title: 'My shows'
-      icon: ICON_MENU_HOME
-      id: 'myShows'
-    }, {
-      title: 'Advanced'
-      id: 'advanced'
-    }]
-  ]
+# trakttv.fetchToWatchList()
 
 mainMenu.show()
 
-mainMenu.on 'select', (e) ->
-  switch e.item.id
-    when 'toWatch', 'upcoming', 'myShows'
-      switch e.item.id
-        when 'toWatch'
-          trakttv.fetchToWatchList()
-          toWatchMenu.show()
-        when 'upcoming'
-          upcomingMenu.show()
-        when 'myShows'
-          myShowsMenu.show()
-
-    when 'advanced'
-      advancedMenu = new UI.Menu
-        sections: [
-          items: [
-            {
-              title: 'Refresh shows'
-              action: -> trakttv.fetchToWatchList()
-            }, {
-              title: 'Reset local data'
-              action: ->
-                localStorage.clear()
-                initSettings()
-                displaySignInWindow()
-
-                console.log "Local storage cleared"
-            }, {
-              title: "Version: #{VERSION}"
-            }
-          ]
-        ]
-      advancedMenu.on 'select', (e) -> e.item.action()
-      advancedMenu.show()
-
 require('birthday')
+
+
+dispatchTimelineAction = (launchCode) ->
+  timeline.getLaunchData(launchCode,
+    (err, data) ->
+      action = data.action
+      episodeID = data.episodeID
+      if action == 'markAsSeen'
+        statusCard = cards.noEscape
+          title: "Marking episode..."
+          body: "Please wait"
+        statusCard.show()
+
+        trakttv.markEpisode(episodeID, true, null,
+          (err, result) ->
+            console.log("MarkAsSeen #{episodeID}. err: #{err}")
+            text =
+              if err?
+                "Communication error. Try again later"
+              else
+                "Episode marked as seen!"
+            notification = cards.notification text
+            notification.show()
+            statusCard.hide()
+          )
+      else if action == 'checkIn'
+        statusCard = cards.noEscape
+          title: "Checking-in episode..."
+          body: "Please wait"
+        statusCard.show()
+
+        trakttv.checkInEpisode(episodeID,
+          (err, result) ->
+            console.log("CheckIn #{episodeID}. err: #{JSON.stringify err}")
+            text =
+              if (err? and result != 409)
+                "Communication error. Try again later"
+              else if (err? and result == 409)
+                "You are already watching the episode."
+              else
+                "Episode check'd in. Enjoy it!"
+            notification = cards.notification text
+            notification.show()
+            statusCard.hide()
+          )
+    )
+
+
+
+
+Wakeup.launch (e) ->
+  console.log "Launch reason: #{JSON.stringify e}"
+  if e.reason == 'timelineAction'
+    launchCode = e.args
+    dispatchTimelineAction(launchCode)
+

@@ -5,6 +5,12 @@ Settings = require('settings')
 
 menus = {}
 
+ICON_MENU_UNCHECKED = 'images/icon_menu_unchecked.png'
+ICON_MENU_CHECKED = 'images/icon_menu_checked.png'
+ICON_MENU_CALENDAR = 'images/icon_calendar.png'
+ICON_MENU_EYE = 'images/icon_eye.png'
+ICON_MENU_HOME = 'images/icon_home.png'
+
 isNextEpisodeForItemAired = (item) ->
   # console.log "isNextEpisodeForItemAired of item: #{JSON.stringify item.show.title}"
   # console.log "item.next_episode #{JSON.stringify item.next_episode}"
@@ -29,8 +35,10 @@ compareByFunction = (keyFunction) ->
     1 if keyFunction(a) > keyFunction(b)
 
 class ToWatch
-  constructor: (opt) ->
-    @icons = opt.icons
+  constructor: ->
+    @icons =
+      checked: ICON_MENU_CHECKED
+      unchecked: ICON_MENU_UNCHECKED
     @menu = new UI.Menu(
       sections:[
         {
@@ -335,5 +343,174 @@ class Upcoming
         detailedItemCard.show()
 
 menus.Upcoming = Upcoming
+
+class MyShows
+  constructor: () ->
+    @menu = new UI.Menu(
+      sections:[
+        {
+          items: [{
+            title: "Loading shows..."
+            }]
+        }
+      ]
+    )
+
+    @initHandlers()
+
+  show: -> @menu.show()
+
+  initHandlers: ->
+    @menu.on 'select', (e) =>
+      data = e.item.data
+      item = i for i in @show_list when i.show.ids.trakt == data.showID
+      seasonsMenu = new UI.Menu
+        sections: [{
+          items:
+            {
+              title: "Season #{season.number}"
+              data:
+                showID: data.showID
+                seasonNumber: season.number
+            } for season in item.seasons
+        }]
+
+      seasonsMenu.show()
+
+      seasonsMenu.on 'select', (e) ->
+        data = e.item.data
+        season = s for s in item.seasons when s.number == data.seasonNumber
+        async.map(
+          season.episodes,
+          (ep, cb) ->
+            trakttv.getOrFetchEpisodeData data.showID, data.seasonNumber, ep.number,
+              (episodes) -> cb(null, episodes)
+          (err, episodes) ->
+            if err?
+              return;
+            episodesMenu = new UI.Menu
+              sections: [{
+                items:
+                  {
+                    title: episode.episodeTitle
+                    subtitle: "Season #{episode.seasonNumber} Ep. #{episode.episodeNumber}"
+                    data:
+                      episodeTitle: episode.episodeTitle
+                      overview: episode.overview
+                      seasonNumber: episode.seasonNumber
+                      episodeNumber: episode.episodeNumber
+                      showID: episode.showID
+                      showTitle: episode.showTitle
+                  } for episode in episodes
+              }]
+            episodesMenu.show()
+            episodesMenu.on 'select', (e) ->
+              data = e.item.data
+              detailedItemCard = new UI.Card(
+                title: data.showTitle
+                subtitle: "Season #{data.seasonNumber} Ep. #{data.episodeNumber}"
+                body: "Title: #{data.episodeTitle}\n\
+                       Overview: #{data.overview}"
+                style: 'small'
+                scrollable: true
+              )
+              detailedItemCard.show()
+          )
+  update: (shows) ->
+    sortedShows = shows[..]
+    sortedShows.sort compareByFunction (e) -> moment(e.last_watched_at)
+
+    @show_list = sortedShows
+
+    sections = [
+      items:
+        {
+          title: item.show.title
+          data:
+            showID: item.show.ids.trakt
+        } for item in @show_list
+    ]
+
+    @menu.section(idx, s) for s, idx in sections
+    console.log "showsMenu updated"
+
+menus.MyShows = MyShows
+
+class Main
+  constructor: ->
+    @menu = new UI.Menu
+      backgroundColor: 'black'
+      sections: [
+        items: [{
+          title: 'To watch'
+          icon: ICON_MENU_EYE
+          id: 'toWatch'
+        }, {
+          title: 'Upcoming'
+          icon: ICON_MENU_CALENDAR
+          id: 'upcoming'
+        }, {
+          title: 'My shows'
+          icon: ICON_MENU_HOME
+          id: 'myShows'
+        }, {
+          title: 'Advanced'
+          id: 'advanced'
+        }]
+      ]
+    @initHandlers()
+
+  initHandlers: ->
+    @menu.on 'select', (e) ->
+      switch e.item.id
+        when 'toWatch', 'upcoming', 'myShows'
+          switch e.item.id
+            when 'toWatch'
+              trakttv.fetchToWatchList()
+              toWatchMenu.show()
+            when 'upcoming'
+              upcomingMenu.show()
+            when 'myShows'
+              myShowsMenu.show()
+
+        when 'advanced'
+          @advancedMenu = Advanced()
+          @advancedMenu.show()
+
+  show: ->
+    @menu.show()
+
+menus.Main = Main
+
+class Advanced
+  constructor: ->
+    @menu = new UI.Menu
+      sections: [
+        items: [
+          {
+            title: 'Refresh shows'
+            action: -> trakttv.fetchToWatchList()
+          }, {
+            title: 'Reset local data'
+            action: ->
+              localStorage.clear()
+              initSettings()
+              displaySignInWindow()
+
+              console.log "Local storage cleared"
+          }, {
+            title: "Version: #{VERSION}"
+          }
+        ]
+      ]
+    @initHandlers()
+
+  initHandlers: ->
+    @menu.on 'select', (e) -> e.item.action()
+
+  show: ->
+    @menu.show()
+
+menus.Advanced = Advanced
 
 module.exports = menus

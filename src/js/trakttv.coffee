@@ -2,6 +2,7 @@ ajax = require('ajax')
 Settings = require('settings')
 Emitter = require('emitter')
 async = require('async')
+appinfo = require('appinfo')
 
 shows = Settings.data 'shows'
 events = new Emitter()
@@ -154,6 +155,65 @@ trakttv.getOrFetchEpisodeData = (showID, seasonNumber, episodeNumber, callback) 
       (episode) ->
         # console.log "fetched id and title: #{JSON.stringify episode}"
         getOrFetchOverview callback
+
+trakttv.markEpisode = (episodeObj, seen, watched_at, cb) ->
+  episode =
+    if (typeof episodeObj) == 'number'
+      {
+        ids:
+          trakt: episodeObj
+      }
+    else
+      episodeObj
+
+  # HACK: clone obj
+  episode = JSON.parse(JSON.stringify(episode))
+  episode.watched_at = watched_at
+
+  action =
+    if seen
+      '/sync/history'
+    else
+      '/sync/history/remove'
+
+  body =
+    episodes: [episode]
+
+  @request
+    action: action
+    method: 'POST'
+    data: body
+    (data, status, req) ->
+      cb(null, data)
+    (err, status, req) ->
+      cb(err, status, req)
+
+trakttv.checkInEpisode = (episodeObj, cb) ->
+  console.log("Checkin. appinfo: #{JSON.stringify appinfo}")
+  console.log("Checkin. versionLabel: #{appinfo.versionLabel}")
+
+  episode =
+    if (typeof episodeObj) == 'number'
+      {
+        ids:
+          trakt: episodeObj
+      }
+    else
+      episodeObj
+
+  # HACK: clone obj
+  episode = JSON.parse(JSON.stringify(episode))
+
+  @request
+    action: '/checkin'
+    method: 'POST'
+    data:
+      episode: episode
+      app_version: appinfo.versionLabel
+    (data, status, req) ->
+      cb(null, data)
+    (err, status, req) ->
+      cb(err, status, req)
 
 trakttv.modifyCheckState = (opt, success, failure) ->
   # console.log("Check watched! episode: #{JSON.stringify(episode)}")
