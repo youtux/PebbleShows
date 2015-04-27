@@ -8,7 +8,7 @@ menus = require('menus')
 cards = require('cards')
 timeline = require('timeline')
 
-CONFIG_BASE_URL = 'http://traktv-forwarder.herokuapp.com/'
+CONFIG_BASE_URL = 'https://pebbleshows.herokuapp.com/pebbleConfig'
 
 
 console.log "accessToken: #{Settings.option 'accessToken'}"
