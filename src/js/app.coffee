@@ -8,6 +8,8 @@ menus = require('menus')
 cards = require('cards')
 timeline = require('timeline')
 
+
+# TODO: don't use timeline if arch is aplite
 CONFIG_BASE_URL = 'https://pebbleshows.herokuapp.com/pebbleConfig'
 
 
