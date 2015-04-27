@@ -475,7 +475,7 @@ class Main
               myShowsMenu.show()
 
         when 'advanced'
-          @advancedMenu = Advanced()
+          @advancedMenu = new Advanced()
           @advancedMenu.show()
 
   show: ->
