@@ -1,19 +1,18 @@
 UI = require('ui')
 Settings = require('settings')
 Wakeup = require('wakeup')
+Appinfo = require('appinfo')
 
 trakttv = require('trakttv')
 menus = require('menus')
 cards = require('cards')
 timeline = require('timeline')
 
-VERSION = "1.3"
-
 CONFIG_BASE_URL = 'http://traktv-forwarder.herokuapp.com/'
 
 
 console.log "accessToken: #{Settings.option 'accessToken'}"
-console.log "Version: #{VERSION}"
+console.log "Version: #{Appinfo.versionLabel}"
 
 
 signInWindow = new UI.Card(

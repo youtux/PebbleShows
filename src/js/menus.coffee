@@ -1,7 +1,9 @@
 UI = require('ui')
-trakttv = require('trakttv')
-async = require('async')
 Settings = require('settings')
+Appinfo = require('appinfo')
+async = require('async')
+
+trakttv = require('trakttv')
 
 menus = {}
 
@@ -498,7 +500,7 @@ class Advanced
 
               console.log "Local storage cleared"
           }, {
-            title: "Version: #{VERSION}"
+            title: "Version: #{Appinfo.versionLabel}"
           }
         ]
       ]
