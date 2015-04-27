@@ -439,7 +439,6 @@ menus.MyShows = MyShows
 class Main
   constructor: ->
     @menu = new UI.Menu
-      backgroundColor: 'black'
       sections: [
         items: [{
           title: 'To watch'
