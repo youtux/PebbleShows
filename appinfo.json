@@ -9,6 +9,11 @@
   "resources": {
     "media": [
       {
+        "file": "images/icon_check.png",
+        "name": "ICON_CHECK",
+        "type": "png"
+      },
+      {
         "file": "images/icon_dismiss.png",
         "name": "ICON_DISMISS",
         "type": "png"
