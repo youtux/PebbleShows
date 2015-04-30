@@ -439,7 +439,11 @@ class MyShows
 menus.MyShows = MyShows
 
 class Main
-  constructor: ->
+  constructor: (opts)->
+    @toWatchMenu = opts.toWatchMenu
+    @upcomingMenu = opts.upcomingMenu
+    @myShowsMenu = opts.myShowsMenu
+    @advancedMenu = opts.advancedMenu
     @menu = new UI.Menu
       sections: [
         items: [{
@@ -462,17 +466,17 @@ class Main
     @initHandlers()
 
   initHandlers: ->
-    @menu.on 'select', (e) ->
+    @menu.on 'select', (e) =>
       switch e.item.id
         when 'toWatch', 'upcoming', 'myShows'
           switch e.item.id
             when 'toWatch'
               trakttv.fetchToWatchList()
-              toWatchMenu.show()
+              @toWatchMenu.show()
             when 'upcoming'
-              upcomingMenu.show()
+              @upcomingMenu.show()
             when 'myShows'
-              myShowsMenu.show()
+              @myShowsMenu.show()
 
         when 'advanced'
           @advancedMenu = new Advanced()
@@ -484,7 +488,8 @@ class Main
 menus.Main = Main
 
 class Advanced
-  constructor: ->
+  constructor: (opts) ->
+    @initSettings = opts.initSettings
     @menu = new UI.Menu
       sections: [
         items: [
@@ -495,8 +500,7 @@ class Advanced
             title: 'Reset local data'
             action: ->
               localStorage.clear()
-              initSettings()
-              displaySignInWindow()
+              @initSettings()
 
               console.log "Local storage cleared"
           }, {

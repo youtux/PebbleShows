@@ -4,9 +4,16 @@ timeline = {}
 timeline.BASE_URL = 'https://pebbleshows.herokuapp.com'
 
 timeline.subscribe = (topic) ->
-  Pebble.timelineSubscribe "#{topic}",
+  retryPeriod = 5000
+  Pebble.timelineUnsubscribe "#{topic}",
     -> console.log('Subscribed to ' + "#{topic}")
-    (error) -> console.log('Error subscribing to topic: ' + error)
+    (error) ->
+      console.log('Error subscribing to topic: ' + error)
+      console.log("Retrying in #{retryPeriod / 1000} seconds")
+      setTimeout(
+        -> Pebble.timelineSubscribe "#{topic}",
+        retryPeriod
+      )
 
 timeline.getLaunchData = (launchCode, cb) ->
   console.log "getLaunchData url: #{@BASE_URL}/api/getLauchData/#{launchCode}"

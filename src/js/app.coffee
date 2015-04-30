@@ -9,13 +9,23 @@ cards = require('cards')
 timeline = require('timeline')
 
 
-# TODO: don't use timeline if arch is aplite
 CONFIG_BASE_URL = 'https://pebbleshows.herokuapp.com/pebbleConfig'
+
+ICON_CHECK = 'images/icon_check.png'
 
 
 console.log "accessToken: #{Settings.option 'accessToken'}"
 console.log "Version: #{Appinfo.versionLabel}"
-
+Pebble.getTimelineToken?(
+  (token) -> console.log "Timeline user token: #{token}"
+  (errorString) -> console.log errorString
+)
+Pebble.timelineSubscriptions?(
+  (topics) ->
+    console.log("Current timeline subscriptions #{JSON.stringify topics}");
+  (errorString) ->
+    console.log('Error getting subscriptions: ' + errorString);
+)
 
 signInWindow = new UI.Card(
     title: 'Sign-in required'
@@ -42,20 +52,55 @@ initSettings = ->
 initSettings()
 
 
+updateSubscriptions = (cb) ->
+  trakttv.fetchToWatchList (err, shows) ->
+    watchingShowIDs = ("#{item.show.ids.trakt}" for item in shows)
+    console.log "The user is watching the following shows:
+    #{JSON.stringify watchingShowIDs}"
+
+    Pebble.timelineSubscriptions?(
+      (topicsSubscribed) ->
+        # Subscribe to new shows
+        watchingShowIDs.forEach (showID) ->
+          if showID in topicsSubscribed
+            return
+          console.log "Subscribing to #{showID}"
+          Pebble.timelineSubscribe("#{showID}",
+            () -> console.log "Subscribed to #{showID}",
+            (errorString) ->
+              console.log "Error while subscribing to #{showID}: #{errorString}"
+            )
+
+        # Unsubscribe from removed shows
+        topicsSubscribed.forEach (topic) ->
+          if topic in watchingShowIDs
+            return
+          console.log "Unsubscribing from #{topic}"
+          Pebble.timelineUnsubscribe("#{topic}",
+            () -> console.log "Unsubscribed from #{topic}",
+            (errorString) ->
+              console.log "Error while unsubscribing from #{topic}: #{errorString}"
+            )
+    )
+updateSubscriptions()
+
 toWatchMenu = new menus.ToWatch()
 myShowsMenu = new menus.MyShows()
 upcomingMenu = new menus.Upcoming(days: 14)
-mainMenu = new menus.Main()
+advancedMenu = new menus.Advanced
+  initSettings: initSettings
+
+mainMenu = new menus.Main
+  toWatchMenu: toWatchMenu
+  myShowsMenu: myShowsMenu
+  upcomingMenu: upcomingMenu
+  advancedMenu: advancedMenu
+
 
 trakttv.on 'update', 'shows', (shows) ->
   console.log "new update fired"
   toWatchMenu.update(shows)
   myShowsMenu.update(shows)
-  for item in shows
-    showID = item.show.ids.trakt
-    timeline.subscribe(showID)
-
-# trakttv.fetchToWatchList()
 
 mainMenu.show()
 
@@ -76,12 +121,16 @@ dispatchTimelineAction = (launchCode) ->
         trakttv.markEpisode(episodeID, true, null,
           (err, result) ->
             console.log("MarkAsSeen #{episodeID}. err: #{err}")
-            text =
+            notification =
               if err?
-                "Communication error. Try again later"
+                new UI.Card
+                  title: "Error"
+                  body: "Communication Error. Try again later"
               else
-                "Episode marked as seen!"
-            notification = cards.notification text
+                new UI.Card
+                  # icon: ICON_CHECK
+                  title: "Success!"
+                  body: "Episode marked as seen."
             notification.show()
             statusCard.hide()
           )
@@ -93,15 +142,22 @@ dispatchTimelineAction = (launchCode) ->
 
         trakttv.checkInEpisode(episodeID,
           (err, result) ->
-            console.log("CheckIn #{episodeID}. err: #{JSON.stringify err}")
-            text =
+            console.log("CheckIn #{episodeID}. err: #{JSON.stringify err}, result: #{JSON.stringify result}")
+            notification =
               if (err? and result != 409)
-                "Communication error. Try again later"
+                new UI.Card
+                  title: "Error"
+                  body: "Communication error. Try again later"
               else if (err? and result == 409)
-                "You are already watching the episode."
+                console.log "Creating already watching card"
+                new UI.Card
+                  title: "Hmmm..."
+                  body: "You are already watching the episode."
               else
-                "Episode check'd in. Enjoy it!"
-            notification = cards.notification text
+                new UI.Card
+                  # icon: ICON_CHECK
+                  title: "Success!"
+                  body: "Episode check'd in. Enjoy it!"
             notification.show()
             statusCard.hide()
           )
