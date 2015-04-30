@@ -189,9 +189,6 @@ trakttv.markEpisode = (episodeObj, seen, watched_at, cb) ->
       cb(err, status, req)
 
 trakttv.checkInEpisode = (episodeObj, cb) ->
-  console.log("Checkin. appinfo: #{JSON.stringify appinfo}")
-  console.log("Checkin. versionLabel: #{appinfo.versionLabel}")
-
   episode =
     if (typeof episodeObj) == 'number'
       {
