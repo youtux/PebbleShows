@@ -274,7 +274,7 @@ menus.MyShows = MyShows
 class Upcoming
   constructor: (opt)->
     @daysWindow = opt.days || 7;
-    @fromDate = moment(opt.fromDate).format('YYYY-MM-DD')
+    @fromDate = moment(opt.fromDate).subtract(1, 'day').format('YYYY-MM-DD')
     @userDateFormat = opt.userDateFormat || "D MMMM YYYY"
 
     @menu = new UI.Menu(
