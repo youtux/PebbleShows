@@ -2,7 +2,7 @@
 var Settings = require('settings');
 
 var config = {
-  BASE_SERVER_URL: 'https://pebbleshows-test.herokuapp.com'
+  BASE_SERVER_URL: 'https://pebbleshows.herokuapp.com'
 };
 
 module.exports = config;
