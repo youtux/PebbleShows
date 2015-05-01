@@ -8,8 +8,10 @@ menus = require('menus')
 cards = require('cards')
 timeline = require('timeline')
 
+config = require('config')
 
-CONFIG_BASE_URL = 'https://pebbleshows.herokuapp.com/pebbleConfig'
+
+CONFIG_URL = "#{config.BASE_SERVER_URL}/pebbleConfig"
 
 ICON_CHECK = 'images/icon_check.png'
 
@@ -37,20 +39,6 @@ signInWindow.on 'click', 'back', ->
 
 trakttv.on 'authorizationRequired', (reason) ->
   signInWindow.show()
-
-
-initSettings = ->
-  Settings.init()
-  Settings.config {
-    url: "#{CONFIG_BASE_URL}"
-    autoSave: true
-  }, (e) ->
-    console.log "Returned from settings"
-    signInWindow.hide()
-    trakttv.fetchToWatchList()
-
-initSettings()
-
 
 updateSubscriptions = (cb) ->
   trakttv.fetchToWatchList (err, shows) ->
@@ -82,7 +70,19 @@ updateSubscriptions = (cb) ->
               console.log "Error while unsubscribing from #{topic}: #{errorString}"
             )
     )
-updateSubscriptions()
+
+initSettings = ->
+  Settings.init()
+  Settings.config {
+    url: "#{CONFIG_URL}"
+    autoSave: true
+  }, (e) ->
+    console.log "Returned from settings"
+    signInWindow.hide()
+    updateSubscriptions()
+
+initSettings()
+
 
 toWatchMenu = new menus.ToWatch()
 myShowsMenu = new menus.MyShows()
@@ -103,6 +103,7 @@ trakttv.on 'update', 'shows', (shows) ->
   myShowsMenu.update(shows)
 
 mainMenu.show()
+updateSubscriptions()
 
 require('birthday')
 

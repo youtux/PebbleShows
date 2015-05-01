@@ -1,7 +1,8 @@
 ajax = require('ajax')
-timeline = {}
 
-timeline.BASE_URL = 'https://pebbleshows.herokuapp.com'
+config = require('config')
+
+timeline = {}
 
 timeline.subscribe = (topic) ->
   retryPeriod = 5000
@@ -16,9 +17,9 @@ timeline.subscribe = (topic) ->
       )
 
 timeline.getLaunchData = (launchCode, cb) ->
-  console.log "getLaunchData url: #{@BASE_URL}/api/getLauchData/#{launchCode}"
+  console.log "getLaunchData url: #{config.BASE_SERVER_URL}/api/getLaunchData/#{launchCode}"
   ajax
-    url: "#{@BASE_URL}/api/getLaunchData/#{launchCode}"
+    url: "#{config.BASE_SERVER_URL}/api/getLaunchData/#{launchCode}"
     type: 'json'
     (data, status, request) ->
       console.log("GOT DATA: #{JSON.stringify data}")
