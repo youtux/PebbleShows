@@ -479,7 +479,6 @@ class Main
               @myShowsMenu.show()
 
         when 'advanced'
-          @advancedMenu = new Advanced()
           @advancedMenu.show()
 
   show: ->
@@ -498,7 +497,7 @@ class Advanced
             action: -> trakttv.fetchToWatchList()
           }, {
             title: 'Reset local data'
-            action: ->
+            action: =>
               localStorage.clear()
               @initSettings()
 
