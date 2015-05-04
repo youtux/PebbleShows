@@ -1,3 +1,5 @@
+config = require('config')
+
 UI = require('ui')
 Settings = require('settings')
 Wakeup = require('wakeup')
@@ -8,7 +10,6 @@ menus = require('menus')
 cards = require('cards')
 timeline = require('timeline')
 
-config = require('config')
 
 
 CONFIG_URL = "#{config.BASE_SERVER_URL}/pebbleConfig"
