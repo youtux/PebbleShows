@@ -1,3 +1,5 @@
+config = require('config')
+
 ajax = require('ajax')
 Settings = require('settings')
 Emitter = require('emitter')
@@ -38,7 +40,7 @@ trakttv.request = (opt, success, failure) ->
     type: 'json'
     headers:
       'trakt-api-version': 2
-      'trakt-api-key': '16fc8c04f10ebdf6074611891c7ce2727b4fcae3d2ab2df177625989543085e9'
+      'trakt-api-key': config.TRAKT_CLIENT_ID
       Authorization: "Bearer #{accessToken}"
     method: opt.method
     data: opt.data
