@@ -80,6 +80,7 @@ initSettings = ->
     console.log "Returned from settings"
     signInWindow.hide()
     updateSubscriptions()
+    upcomingMenu.reload()
 
 initSettings()
 
