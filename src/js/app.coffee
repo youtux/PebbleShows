@@ -1,15 +1,14 @@
 config = require('config')
 
+ajax = require('ajax')
 UI = require('ui')
 Settings = require('settings')
-Wakeup = require('wakeup')
+Timeline = require('timeline')
 Appinfo = require('appinfo')
 
 trakttv = require('trakttv')
 menus = require('menus')
 cards = require('cards')
-timeline = require('timeline')
-
 
 
 CONFIG_URL = "#{config.BASE_SERVER_URL}/pebbleConfig"
@@ -110,7 +109,19 @@ require('birthday')
 
 
 dispatchTimelineAction = (launchCode) ->
-  timeline.getLaunchData(launchCode,
+  getLaunchData = (launchCode, cb) ->
+    console.log "getLaunchData url: #{config.BASE_SERVER_URL}/api/getLaunchData/#{launchCode}"
+    ajax
+      url: "#{config.BASE_SERVER_URL}/api/getLaunchData/#{launchCode}"
+      type: 'json'
+      (data, status, request) ->
+        console.log("GOT DATA: #{JSON.stringify data}")
+        cb(null, data)
+      (err, status, request) ->
+        console.log("GOT error: #{JSON.stringify err}")
+        cb(err, status, request)
+
+  getLaunchData(launchCode,
     (err, data) ->
       action = data.action
       episodeID = data.episodeID
@@ -166,11 +177,9 @@ dispatchTimelineAction = (launchCode) ->
     )
 
 
-
-
-Wakeup.launch (e) ->
+Timeline.launch (e) ->
   console.log "Launch reason: #{JSON.stringify e}"
-  if e.reason == 'timelineAction'
-    launchCode = e.args
+  if e.action
+    launchCode = e.launchCode
     dispatchTimelineAction(launchCode)
 
