@@ -53,48 +53,60 @@ trakttv.request = (opt, success, failure) ->
       failure? response, status, req
 
 
-trakttv.getOrFetchShows = (cb) ->
-  if shows
-    return cb(null, shows)
-  console.log "refreshing models"
-  trakttv.request '/sync/watched/shows', (response, status, req) ->
-    # console.log "Returned shows: #{JSON.stringify shows.map (e)->e.show}"
-    shows = response
-    Settings.data shows: shows
-    # trakttv.getToWatchList response, cb
-    cb(null, shows)
+trakttv.getShows = (cb) ->
+  trakttv.request '/sync/watched/shows',
+    (response, status, req) ->
+      # console.log "Returned shows: #{JSON.stringify shows.map (e)->e.show}"
+      # trakttv.getToWatchList response, cb
+      cb(null, response)
+    (response, status, req) ->
+      cb(status)
+
 
 trakttv.fetchToWatchList = (cb) ->
-  trakttv.getOrFetchShows (err, shows) ->
+  trakttv.getShows (err, shows) ->
+    # TODO: Check err
+    return if err?
+
     async.each(
       shows,
       (item, doneItem) ->
-        trakttv.fetchShowProgress item.show.ids.trakt,
-          (response) -> doneItem(),
-          (response) ->
-            console.log "Failed: #{response}"
+        showID = item.show.ids.trakt
+        trakttv.fetchShowProgress showID,
+          (err, showProgress) ->
+            return doneItem() if err?
+
+            item = i for i in shows when i.show.ids.trakt == showID
+
+            item.next_episode = showProgress.next_episode
+            item.seasons = showProgress.seasons
+
+            events.emit 'update', 'show', item
+
+            doneItem()
+          (status) ->
+            console.log "Failed: #{status}"
             doneItem()
       (err) ->
         events.emit 'update', 'shows', shows
         cb? err, shows
     )
 
+trakttv.getCalendar = (fromDate, daysWindow, cb) ->
+  trakttv.request "/calendars/shows/#{fromDate}/#{daysWindow}",
+    (response, status, req) =>
+      events.emit 'update', 'calendar', response
+      cb?(null, response)
+    (response, status, req) =>
+      console.log "Failed to fetch the calendar"
+      cb?(status)
 
-trakttv.fetchShowProgress = (showID, success, failure) ->
+trakttv.fetchShowProgress = (showID, cb) ->
   trakttv.request "/shows/#{showID}/progress/watched",
     (response, status, req) ->
-      console.log "Reloading show #{showID}"
-      # console.log "response: #{JSON.stringify response}"
-      item = i for i in shows when i.show.ids.trakt == showID
-
-      item.next_episode = response.next_episode
-      item.seasons = response.seasons
-      Settings.data shows: shows
-
-      events.emit 'update', 'show', item
-
-      success? item
-    failure
+      cb(null, response)
+    (response, status, req) ->
+      cb(status)
 
 trakttv.getOrFetchEpisodeData = (showID, seasonNumber, episodeNumber, callback) ->
   # toWatchMenu.on 'select', (e) ->

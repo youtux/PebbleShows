@@ -11,102 +11,86 @@ menus = require('menus')
 cards = require('cards')
 
 
-CONFIG_URL = "#{config.BASE_SERVER_URL}/pebbleConfig"
+subscriptionsAlreadyUpdated = false
 
-ICON_CHECK = 'images/icon_check.png'
+signInWindow = cards.noEscape
+  title: 'Sign-in required'
+  body: 'Open the Pebble App and configure Pebble Shows.'
 
 
-console.log "accessToken: #{Settings.option 'accessToken'}"
-console.log "Version: #{Appinfo.versionLabel}"
-Pebble.getTimelineToken?(
-  (token) -> console.log "Timeline user token: #{token}"
-  (errorString) -> console.log errorString
-)
-Pebble.timelineSubscriptions?(
-  (topics) ->
-    console.log("Current timeline subscriptions #{JSON.stringify topics}");
-  (errorString) ->
-    console.log('Error getting subscriptions: ' + errorString);
-)
-
-signInWindow = new UI.Card(
-    title: 'Sign-in required'
-    body: 'Open the Pebble App and configure Pebble Shows.'
+logInfo = ->
+  console.log "accessToken: #{Settings.option 'accessToken'}"
+  console.log "Version: #{Appinfo.versionLabel}"
+  Pebble.getTimelineToken?(
+    (token) -> console.log "Timeline user token: #{token}"
+    (errorString) -> console.log errorString
   )
-signInWindow.on 'click', 'back', ->
-  # No escape :)
-  return
-
-trakttv.on 'authorizationRequired', (reason) ->
-  signInWindow.show()
-
-updateSubscriptions = (cb) ->
-  trakttv.fetchToWatchList (err, shows) ->
-    watchingShowIDs = ("#{item.show.ids.trakt}" for item in shows)
-    console.log "The user is watching the following shows:
-    #{JSON.stringify watchingShowIDs}"
-
-    Pebble.timelineSubscriptions?(
-      (topicsSubscribed) ->
-        # Subscribe to new shows
-        watchingShowIDs.forEach (showID) ->
-          if showID in topicsSubscribed
-            return
-          console.log "Subscribing to #{showID}"
-          Pebble.timelineSubscribe("#{showID}",
-            () -> console.log "Subscribed to #{showID}",
-            (errorString) ->
-              console.log "Error while subscribing to #{showID}: #{errorString}"
-            )
-
-        # Unsubscribe from removed shows
-        topicsSubscribed.forEach (topic) ->
-          if topic in watchingShowIDs
-            return
-          console.log "Unsubscribing from #{topic}"
-          Pebble.timelineUnsubscribe("#{topic}",
-            () -> console.log "Unsubscribed from #{topic}",
-            (errorString) ->
-              console.log "Error while unsubscribing from #{topic}: #{errorString}"
-            )
-    )
 
 initSettings = ->
   Settings.init()
   Settings.config {
-    url: "#{CONFIG_URL}"
+    url: config.PEBBLE_CONFIG_URL
     autoSave: true
   }, (e) ->
     console.log "Returned from settings"
     signInWindow.hide()
-    updateSubscriptions()
-    upcomingMenu.reload()
+    fetchData()
 
-initSettings()
+setupEvents = ->
+  trakttv.on 'authorizationRequired', (reason) ->
+    signInWindow.show()
 
+  trakttv.on 'update', 'shows', (shows) ->
+    Settings.data shows: shows
+    console.log "new update fired"
+    toWatchMenu.update(shows)
+    myShowsMenu.update(shows)
+    updateSubscriptions shows
 
-toWatchMenu = new menus.ToWatch()
-myShowsMenu = new menus.MyShows()
-upcomingMenu = new menus.Upcoming(days: 14)
-advancedMenu = new menus.Advanced
-  initSettings: initSettings
+  trakttv.on 'update', 'calendar', (calendar) ->
+    Settings.data calendar: calendar
+    upcomingMenu.update(calendar)
 
-mainMenu = new menus.Main
-  toWatchMenu: toWatchMenu
-  myShowsMenu: myShowsMenu
-  upcomingMenu: upcomingMenu
-  advancedMenu: advancedMenu
+fetchData = ->
+  trakttv.getCalendar(moment().subtract(1, 'day').format('YYYY-MM-DD'), 7)
+  trakttv.fetchToWatchList()
 
+updateSubscriptions = (shows) ->
+  if subscriptionsAlreadyUpdated
+    return
 
-trakttv.on 'update', 'shows', (shows) ->
-  console.log "new update fired"
-  toWatchMenu.update(shows)
-  myShowsMenu.update(shows)
+  watchingShowIDs = ("#{item.show.ids.trakt}" for item in shows)
+  console.log "The user is watching the following shows:
+  #{JSON.stringify watchingShowIDs}"
 
-mainMenu.show()
-updateSubscriptions()
+  Pebble.timelineSubscriptions?(
+    (topicsSubscribed) ->
+      # TODO: use async
+      subscriptionsAlreadyUpdated = true
 
-require('birthday')
+      console.log("Current timeline subscriptions #{JSON.stringify topicsSubscribed}");
+      # Subscribe to new shows
+      watchingShowIDs.forEach (showID) ->
+        if showID in topicsSubscribed
+          return
+        console.log "Subscribing to #{showID}"
+        Pebble.timelineSubscribe("#{showID}",
+          () -> console.log "Subscribed to #{showID}",
+          (errorString) ->
+            console.log "Error while subscribing to #{showID}: #{errorString}"
+          )
+
+      # Unsubscribe from removed shows
+      topicsSubscribed.forEach (topic) ->
+        if topic in watchingShowIDs
+          return
+        console.log "Unsubscribing from #{topic}"
+        Pebble.timelineUnsubscribe("#{topic}",
+          () -> console.log "Unsubscribed from #{topic}",
+          (errorString) ->
+            console.log "Error while unsubscribing from #{topic}: #{errorString}"
+          )
+  )
 
 
 dispatchTimelineAction = (launchCode) ->
@@ -142,7 +126,6 @@ dispatchTimelineAction = (launchCode) ->
                   body: "Communication Error. Try again later"
               else
                 new UI.Card
-                  # icon: ICON_CHECK
                   title: "Success!"
                   body: "Episode marked as seen."
             notification.show()
@@ -169,7 +152,6 @@ dispatchTimelineAction = (launchCode) ->
                   body: "You are already watching the episode."
               else
                 new UI.Card
-                  # icon: ICON_CHECK
                   title: "Success!"
                   body: "Episode check'd in. Enjoy it!"
             notification.show()
@@ -177,10 +159,36 @@ dispatchTimelineAction = (launchCode) ->
           )
     )
 
+checkLaunchEvent = ->
+  Timeline.launch (e) ->
+    console.log "Launch reason: #{JSON.stringify e}"
+    if e.action
+      launchCode = e.launchCode
+      dispatchTimelineAction(launchCode)
 
-Timeline.launch (e) ->
-  console.log "Launch reason: #{JSON.stringify e}"
-  if e.action
-    launchCode = e.launchCode
-    dispatchTimelineAction(launchCode)
+toWatchMenu = new menus.ToWatch()
+toWatchMenu.update(Settings.data 'shows') if Settings.data 'shows'
+
+myShowsMenu = new menus.MyShows()
+myShowsMenu.update(Settings.data 'shows') if Settings.data 'shows'
+
+upcomingMenu = new menus.Upcoming()
+upcomingMenu.update(Settings.data 'calendar') if Settings.data 'calendar'
+
+advancedMenu = new menus.Advanced
+  initSettings: initSettings
+
+mainMenu = new menus.Main
+  toWatchMenu: toWatchMenu
+  myShowsMenu: myShowsMenu
+  upcomingMenu: upcomingMenu
+  advancedMenu: advancedMenu
+
+mainMenu.show()
+
+logInfo()
+initSettings()
+setupEvents()
+checkLaunchEvent()
+fetchData()
 

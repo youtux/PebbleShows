@@ -95,9 +95,11 @@ class ToWatch
 
           if isNowCompleted and not element.isNextEpisodeListed
             # TODO: clean this mess using getEpisodeData
-            trakttv.fetchShowProgress data.showID, (reloadedShow) =>
-              console.log "RELOADED ShowID: #{reloadedShow.show.ids.trakt}, title: #{reloadedShow.show.title}"
-              # console.log "item: #{JSON.stringify reloadedShow}"
+            trakttv.fetchShowProgress data.showID, (err, reloadedShow) =>
+              # TODO: if err, reset the checked flag and subtitles
+              return if err?
+              console.log "RELOADED ShowID: #{data.showID}"
+
               if isNextEpisodeForItemAired(reloadedShow) and not element.isNextEpisodeListed
                 element.isNextEpisodeListed = true
 
@@ -180,11 +182,7 @@ class ToWatch
 menus.ToWatch = ToWatch
 
 class Upcoming
-  constructor: (opt)->
-    @daysWindow = opt.days || 7;
-    @fromDate = moment(opt.fromDate).subtract(1, 'day').format('YYYY-MM-DD')
-    @userDateFormat = opt.userDateFormat || "D MMMM YYYY"
-
+  constructor: (@userDateFormat = "D MMMM YYYY") ->
     @menu = new UI.Menu(
       sections:[
         {
@@ -195,13 +193,10 @@ class Upcoming
       ]
     )
 
-    if Settings.data('calendar')?
-      @update()
-
     @initHandlers()
-    @reload()
+    # @reload()
 
-  update: () ->
+  update: (calendar) ->
     # console.log "Updating UpcomingMenu: #{JSON.stringify calendar}"
     sections =
       {
@@ -216,21 +211,12 @@ class Upcoming
               episodeNumber: item.episode.number
 
           } for item in items when moment(item.airs_at).isAfter(@fromDate) and not (typeof item == "string")
-      } for date, items of Settings.data 'calendar'
+      } for date, items of calendar
 
     # console.log "---- #{JSON.stringify sections}"
 
     @menu.section(idx, s) for s, idx in sections
     # sections.forEach (s, idx) => @menu.section(idx, s)
-
-  reload: ->
-    trakttv.request "/calendars/shows/#{@fromDate}/#{@daysWindow}",
-      (response, status, req) =>
-        Settings.data 'calendar': response
-        @update()
-      (response, status, req) =>
-        console.log "Failed to fetch the calendar"
-
 
   show: ->
     @menu.show()
@@ -379,7 +365,7 @@ class Main
         when 'toWatch', 'upcoming', 'myShows'
           switch e.item.id
             when 'toWatch'
-              trakttv.fetchToWatchList()
+              # trakttv.fetchToWatchList()
               @toWatchMenu.show()
             when 'upcoming'
               @upcomingMenu.show()
@@ -402,7 +388,7 @@ class Advanced
         items: [
           {
             title: 'Refresh shows'
-            action: -> trakttv.fetchToWatchList()
+            action: -> trakttv.fetchToWatchList() # this needs to be a call to a fn that save the result to localStorage
           }, {
             title: 'Reset local data'
             action: =>
