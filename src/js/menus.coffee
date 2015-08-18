@@ -307,7 +307,7 @@ class Upcoming
               seasonNumber: item.episode.season
               episodeNumber: item.episode.number
 
-          } for item in items when moment(item.airs_at).isAfter(@fromDate)
+          } for item in items when moment(item.airs_at).isAfter(@fromDate) and not (typeof item == "string")
       } for date, items of Settings.data 'calendar'
 
     # console.log "---- #{JSON.stringify sections}"
