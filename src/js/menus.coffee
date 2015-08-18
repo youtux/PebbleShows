@@ -30,7 +30,15 @@ menuDefaults =
 
 
 createDefaultMenu = (menuDef) ->
-  new UI.Menu myutil.shadow(menuDefaults, menuDef || {})
+  options = myutil.shadow(menuDefaults, menuDef || {})
+  options.sections ?= [
+    {
+      items: [{
+        title: "Loading..."
+      }]
+    }
+  ]
+  new UI.Menu options
 
 
 isNextEpisodeForItemAired = (item) ->
@@ -263,14 +271,7 @@ menus.Upcoming = Upcoming
 
 class MyShows
   constructor: () ->
-    @menu = createDefaultMenu
-      sections:[
-        {
-          items: [{
-            title: "Loading shows..."
-            }]
-        }
-      ]
+    @menu = createDefaultMenu()
 
     @initHandlers()
 
@@ -298,12 +299,7 @@ class MyShows
       seasonsMenu.on 'select', (e) ->
         data = e.item.data
         season = s for s in item.seasons when s.number == data.seasonNumber
-        episodesMenu = createDefaultMenu
-          sections: [{
-            items: [{
-              title: "Loading..."
-              }]
-            }]
+        episodesMenu = createDefaultMenu()
         episodesMenu.show()
 
         async.map(
