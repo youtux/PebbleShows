@@ -59,7 +59,9 @@ Wakeup.get = function(id) {
 Wakeup.each = function(callback) {
   var i = 0;
   for (var id in this.state.wakeups) {
-    callback(this.get(id), i++);
+    if (callback(this.get(id), i++) === false) {
+      break;
+    }
   }
 };
 
@@ -73,7 +75,9 @@ Wakeup.schedule = function(opt, callback) {
     data: opt.data,
     callback: callback,
   });
-  simply.impl.wakeupSet(opt.time, cookie, opt.notifyIfMissed);
+  Wakeup.launch(function() {
+    simply.impl.wakeupSet(opt.time, cookie, opt.notifyIfMissed);
+  });
 };
 
 Wakeup.cancel = function(id) {

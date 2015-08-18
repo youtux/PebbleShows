@@ -18,6 +18,7 @@ struct SimplyWindow {
   ScrollLayer *scroll_layer;
   Layer *layer;
   ActionBarLayer *action_bar_layer;
+  const WindowHandlers *window_handlers;
   uint32_t id;
   ButtonId button_mask:4;
   GColor8 background_color;
@@ -32,10 +33,11 @@ void simply_window_deinit(SimplyWindow *self);
 void simply_window_show(SimplyWindow *self);
 void simply_window_hide(SimplyWindow *self);
 
+void simply_window_preload(SimplyWindow *self);
 void simply_window_load(SimplyWindow *self);
 void simply_window_unload(SimplyWindow *self);
-void simply_window_appear(SimplyWindow *self);
-void simply_window_disappear(SimplyWindow *self);
+bool simply_window_appear(SimplyWindow *self);
+bool simply_window_disappear(SimplyWindow *self);
 
 void simply_window_single_click_handler(ClickRecognizerRef recognizer, void *context);
 
