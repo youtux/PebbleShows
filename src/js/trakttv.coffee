@@ -33,7 +33,7 @@ trakttv.request = (opt, success, failure) ->
 
   accessToken = Settings.option 'accessToken'
   unless accessToken?
-    events.emit 'authorizationRequired', 'Missing access token'
+    events.emit 'authorizationRequired', message: 'Missing access token'
 
   ajax
     url: opt.url
@@ -48,7 +48,7 @@ trakttv.request = (opt, success, failure) ->
     (response, status, req) ->
       if status == 401
         console.log "Server says that authorization is required"
-        events.emit 'authorizationRequired', 'Authorization required from server'
+        events.emit 'authorizationRequired', message: 'Authorization required from server'
       console.log "Request failure (#{status} #{opt.method} #{opt.url})"
       failure? response, status, req
 
@@ -81,21 +81,21 @@ trakttv.fetchToWatchList = (cb) ->
             item.next_episode = showProgress.next_episode
             item.seasons = showProgress.seasons
 
-            events.emit 'update', 'show', item
+            events.emit 'update', 'show', show: item
 
             doneItem()
           (status) ->
             console.log "Failed: #{status}"
             doneItem()
       (err) ->
-        events.emit 'update', 'shows', shows
+        events.emit 'update', 'shows', shows: shows
         cb? err, shows
     )
 
 trakttv.getCalendar = (fromDate, daysWindow, cb) ->
   trakttv.request "/calendars/shows/#{fromDate}/#{daysWindow}",
     (response, status, req) =>
-      events.emit 'update', 'calendar', response
+      events.emit 'update', 'calendar', calendar: response
       cb?(null, response)
     (response, status, req) =>
       console.log "Failed to fetch the calendar"

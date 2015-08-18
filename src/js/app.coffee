@@ -37,17 +37,20 @@ initSettings = ->
     fetchData()
 
 setupEvents = ->
-  trakttv.on 'authorizationRequired', (reason) ->
+  trakttv.on 'authorizationRequired', (event) ->
+    message = event.message
     signInWindow.show()
 
-  trakttv.on 'update', 'shows', (shows) ->
+  trakttv.on 'update', 'shows', (event) ->
+    shows = event.shows
     Settings.data shows: shows
     console.log "new update fired"
     toWatchMenu.update(shows)
     myShowsMenu.update(shows)
     updateSubscriptions shows
 
-  trakttv.on 'update', 'calendar', (calendar) ->
+  trakttv.on 'update', 'calendar', (event) ->
+    calendar = event.calendar
     Settings.data calendar: calendar
     upcomingMenu.update(calendar)
 
