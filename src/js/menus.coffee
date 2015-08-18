@@ -2,6 +2,7 @@ UI = require('ui')
 Settings = require('settings')
 Appinfo = require('appinfo')
 async = require('async')
+myutil = require('myutil')
 
 trakttv = require('trakttv')
 
@@ -12,6 +13,25 @@ ICON_MENU_CHECKED = 'images/icon_menu_checked.png'
 ICON_MENU_CALENDAR = 'images/icon_calendar.png'
 ICON_MENU_EYE = 'images/icon_eye.png'
 ICON_MENU_HOME = 'images/icon_home.png'
+
+menuDefaults =
+  if Pebble.getActiveWatchInfo?().platform == "basalt"
+    backgroundColor: 'black'
+    textColor: 'white'
+    highlightBackgroundColor: 'vividCerulean'
+    highlightTextColor: 'white'
+    fullscreen: true
+  else
+    backgroundColor: 'white'
+    textColor: 'black'
+    highlightBackgroundColor: 'black'
+    highlightTextColor: 'white'
+    fullscreen: false
+
+
+createDefaultMenu = (menuDef) ->
+  new UI.Menu myutil.shadow(menuDefaults, menuDef || {})
+
 
 isNextEpisodeForItemAired = (item) ->
   # console.log "isNextEpisodeForItemAired of item: #{JSON.stringify item.show.title}"
@@ -41,6 +61,7 @@ class ToWatch
     @icons =
       checked: ICON_MENU_CHECKED
       unchecked: ICON_MENU_UNCHECKED
+    # TODO: use createDefaultMenu when sections will display correctly
     @menu = new UI.Menu(
       sections:[
         {
@@ -242,7 +263,7 @@ menus.Upcoming = Upcoming
 
 class MyShows
   constructor: () ->
-    @menu = new UI.Menu(
+    @menu = createDefaultMenu
       sections:[
         {
           items: [{
@@ -250,7 +271,6 @@ class MyShows
             }]
         }
       ]
-    )
 
     @initHandlers()
 
@@ -262,7 +282,7 @@ class MyShows
       showTitle = e.item.data.showTitle
 
       item = i for i in @show_list when i.show.ids.trakt == data.showID
-      seasonsMenu = new UI.Menu
+      seasonsMenu = createDefaultMenu
         sections: [{
           items:
             {
@@ -278,7 +298,7 @@ class MyShows
       seasonsMenu.on 'select', (e) ->
         data = e.item.data
         season = s for s in item.seasons when s.number == data.seasonNumber
-        episodesMenu = new UI.Menu
+        episodesMenu = createDefaultMenu
           sections: [{
             items: [{
               title: "Loading..."
@@ -312,6 +332,7 @@ class MyShows
 
             episodesMenu.on 'select', (e) ->
               data = e.item.data
+              # TODO: colorize this card
               detailedItemCard = new UI.Card(
                 title: showTitle
                 subtitle: "Season #{data.seasonNumber} Ep. #{data.episodeNumber}"
