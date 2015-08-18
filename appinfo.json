@@ -4,7 +4,7 @@
     "configurable"
   ],
   "companyName": "youtux@gmail.com",
-  "longName": "Pebble Shows",
+  "longName": "Shows",
   "projectType": "pebblejs",
   "resources": {
     "media": [
@@ -69,7 +69,7 @@
   "shortName": "Shows",
   "uuid": "1596d615-c853-438c-9852-df68ce14d915",
   "versionCode": 1,
-  "versionLabel": "2.1",
+  "versionLabel": "2.2",
   "watchapp": {
     "watchface": false
   },
