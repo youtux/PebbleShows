@@ -259,6 +259,8 @@ class MyShows
   initHandlers: ->
     @menu.on 'select', (e) =>
       data = e.item.data
+      showTitle = e.item.data.showTitle
+
       item = i for i in @show_list when i.show.ids.trakt == data.showID
       seasonsMenu = new UI.Menu
         sections: [{
@@ -276,34 +278,42 @@ class MyShows
       seasonsMenu.on 'select', (e) ->
         data = e.item.data
         season = s for s in item.seasons when s.number == data.seasonNumber
+        episodesMenu = new UI.Menu
+          sections: [{
+            items: [{
+              title: "Loading..."
+              }]
+            }]
+        episodesMenu.show()
+
         async.map(
           season.episodes,
           (ep, cb) ->
-            trakttv.getOrFetchEpisodeData data.showID, data.seasonNumber, ep.number,
-              (episodes) -> cb(null, episodes)
+            trakttv.getEpisodeData data.showID, data.seasonNumber, ep.number,
+              (err, episode) ->
+                # TODO: maybe we can print something else?
+                if err?
+                  episode = {}
+                cb(null, episode)
           (err, episodes) ->
-            if err?
-              return;
-            episodesMenu = new UI.Menu
-              sections: [{
-                items:
-                  {
-                    title: episode.episodeTitle
-                    subtitle: "Season #{episode.seasonNumber} Ep. #{episode.episodeNumber}"
-                    data:
-                      episodeTitle: episode.episodeTitle
-                      overview: episode.overview
-                      seasonNumber: episode.seasonNumber
-                      episodeNumber: episode.episodeNumber
-                      showID: episode.showID
-                      showTitle: episode.showTitle
-                  } for episode in episodes
-              }]
-            episodesMenu.show()
+            episodesMenuSections = [{
+              items:
+                {
+                  title: episode.title
+                  subtitle: "Season #{episode.season} Ep. #{episode.number}"
+                  data:
+                    episodeTitle: episode.title
+                    overview: episode.overview
+                    seasonNumber: episode.season
+                    episodeNumber: episode.number
+                } for episode in episodes
+            }]
+            episodesMenu.section(idx, s) for s, idx in episodesMenuSections
+
             episodesMenu.on 'select', (e) ->
               data = e.item.data
               detailedItemCard = new UI.Card(
-                title: data.showTitle
+                title: showTitle
                 subtitle: "Season #{data.seasonNumber} Ep. #{data.episodeNumber}"
                 body: "Title: #{data.episodeTitle}\n\
                        Overview: #{data.overview}"
@@ -324,6 +334,7 @@ class MyShows
           title: item.show.title
           data:
             showID: item.show.ids.trakt
+            showTitle: item.show.title
         } for item in @show_list
     ]
 

@@ -44,7 +44,6 @@ setupEvents = ->
   trakttv.on 'update', 'shows', (event) ->
     shows = event.shows
     Settings.data shows: shows
-    console.log "new update fired"
     toWatchMenu.update(shows)
     myShowsMenu.update(shows)
     updateSubscriptions shows

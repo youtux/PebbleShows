@@ -108,6 +108,110 @@ trakttv.fetchShowProgress = (showID, cb) ->
     (response, status, req) ->
       cb(status)
 
+# {
+#   season: 1,
+#   number: 1,
+#   title: "Pilot",
+#   episodeID: 73482,
+#   overview: "When an unassuming high school chemistry teacher discovers he has a rare form of lung cancer, he decides to team up with a former student and create a top of the line crystal meth in a used RV, to provide for his family once he is gone.",
+#   images: {
+#     screenshots: {
+#       full: "https://walter.trakt.us/images/episodes/000/073/482/screenshots/original/ef3352bcb8.jpg",
+#       medium: "https://walter.trakt.us/images/episodes/000/073/482/screenshots/medium/ef3352bcb8.jpg",
+#       thumb: "https://walter.trakt.us/images/episodes/000/073/482/screenshots/thumb/ef3352bcb8.jpg"
+#     }
+#   },
+#   show: {
+#     title: "Breaking Bad",
+#     year: "2008",
+#     showID: 1388
+#   }
+# }
+trakttv.getEpisodeData = (showID, seasonNumber, episodeNumber, callback) ->
+  result = {}
+# {
+#   "season":1,
+#   "number":1,
+#   "title":"Pilot",
+#   "ids":{
+#     "trakt":73482,
+#     "tvdb":349232,
+#     "imdb":"tt0959621",
+#     "tmdb":62085,
+#     "tvrage":637041
+#   }
+# }
+  trakttv.request "/shows/#{showID}/seasons/#{seasonNumber}/episodes/#{episodeNumber}",
+    (response, status, req) ->
+      console.log "fetch episode id and title response: #{JSON.stringify response}"
+      result.title = response.title
+      result.episodeID = episodeID = response.ids.trakt
+      result.season = response.season
+      result.number = response.number
+
+      trakttv.searchEpisode episodeID, (err, response) ->
+        result.overview = response.episode.overview
+        result.images = response.episode.images
+
+        result.show =
+          title: response.show.title
+          showID: response.show.ids.trakt
+
+        events.emit 'update', 'episode', episode: result
+
+        callback null, result
+
+#   {
+#     "type":"episode",
+#     "score":null,
+#     "episode":{
+#       "season":1,
+#       "number":1,
+#       "title":"Pilot",
+#       "overview":"When an unassuming high school chemistry teacher discovers he has a rare form of lung cancer, he decides to team up with a former student and create a top of the line crystal meth in a used RV, to provide for his family once he is gone.",
+#       "images":{
+#         "screenshot":{
+#           "full":"https://walter.trakt.us/images/episodes/000/073/482/screenshots/original/ef3352bcb8.jpg",
+#           "medium":"https://walter.trakt.us/images/episodes/000/073/482/screenshots/medium/ef3352bcb8.jpg",
+#           "thumb":"https://walter.trakt.us/images/episodes/000/073/482/screenshots/thumb/ef3352bcb8.jpg"
+#         }
+#       },
+#       "ids":{
+#         "trakt":73482,
+#         "tvdb":349232,
+#         "imdb":"tt0959621",
+#         "tmdb":62085,
+#         "tvrage":637041
+#       }
+#     },
+#     "show":{
+#       "title":"Breaking Bad",
+#       "year":"2008",
+#       "ids":{
+#         "trakt":1388,
+#         "slug":"breaking-bad"
+#       },
+#       "images":{
+#         "poster":{
+#           "full":"https://walter.trakt.us/images/shows/000/001/388/posters/original/fa39b59954.jpg",
+#           "medium":"https://walter.trakt.us/images/shows/000/001/388/posters/medium/fa39b59954.jpg",
+#           "thumb":"https://walter.trakt.us/images/shows/000/001/388/posters/thumb/fa39b59954.jpg"
+#         },
+#         "fanart":{
+#           "full":null,
+#           "medium":"https://walter.trakt.us/images/shows/000/001/388/fanarts/medium/fdbc0cb02d.jpg",
+#           "thumb":"https://walter.trakt.us/images/shows/000/001/388/fanarts/thumb/fdbc0cb02d.jpg"
+#         }
+#       }
+#     }
+#   }
+trakttv.searchEpisode = (episodeID, cb) ->
+  trakttv.request "/search?id_type=trakt-episode&id=#{episodeID}",
+    (response, status, req) ->
+      cb null, response[0]
+    (response, status, req) ->
+      cb status
+
 trakttv.getOrFetchEpisodeData = (showID, seasonNumber, episodeNumber, callback) ->
   # toWatchMenu.on 'select', (e) ->
   # element = e.item
