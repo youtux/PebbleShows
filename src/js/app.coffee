@@ -19,10 +19,14 @@ signInWindow = cards.noEscape
 
 
 logInfo = ->
-  console.log "accessToken: #{Settings.option 'accessToken'}"
+  accessToken = Settings.option 'accessToken'
+  if accessToken?
+    accessToken = "#{accessToken[0..5]}..."
+
+  console.log "accessToken: #{accessToken}"
   console.log "Version: #{Appinfo.versionLabel}"
   Pebble.getTimelineToken?(
-    (token) -> console.log "Timeline user token: #{token}"
+    (token) -> console.log "Timeline user token: #{token[0..5]}..."
     (errorString) -> console.log errorString
   )
 
