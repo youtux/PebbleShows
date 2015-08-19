@@ -301,7 +301,7 @@ class Upcoming
         items:
           {
             title: item.show.title
-            subtitle: "S#{item.episode.season}E#{item.episode.number} | #{moment(item.airs_at).format('HH:MM')}"
+            subtitle: "S#{item.episode.season}E#{item.episode.number} | #{moment(item.airs_at).format('HH:mm')}"
             data:
               showID: item.show.ids.trakt
               seasonNumber: item.episode.season
