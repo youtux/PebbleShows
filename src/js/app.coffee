@@ -176,8 +176,7 @@ myShowsMenu.update(Settings.data 'shows') if Settings.data 'shows'
 upcomingMenu = new menus.Upcoming()
 upcomingMenu.update(Settings.data 'calendar') if Settings.data 'calendar'
 
-advancedMenu = new menus.Advanced
-  initSettings: initSettings
+advancedMenu = new menus.Advanced initSettings, fetchData
 
 mainMenu = new menus.Main
   toWatchMenu: toWatchMenu

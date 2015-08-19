@@ -442,13 +442,14 @@ class Main
 menus.Main = Main
 
 class Advanced
-  constructor: (opts) ->
-    @initSettings = opts.initSettings
+  constructor: (@initSettings, @fetchData) ->
     @menu = createDefaultMenu
       sections: [
         items: [
-          # TODO: an option to reset the menus
           {
+            title: 'Reload shows'
+            action: @fetchData
+          }, {
             title: 'Reset local data'
             action: =>
               localStorage.clear()
@@ -464,7 +465,7 @@ class Advanced
     @initHandlers()
 
   initHandlers: ->
-    @menu.on 'select', (e) -> e.item.action()
+    @menu.on 'select', (e) => e.item.action()
 
   show: ->
     @menu.show()
