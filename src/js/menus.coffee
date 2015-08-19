@@ -272,7 +272,7 @@ class Upcoming
         items:
           {
             title: item.show.title
-            subtitle: "S#{item.episode.season}E#{item.episode.number} | #{moment(item.airs_at).format('HH:MM')}"
+            subtitle: "S#{item.episode.season}E#{item.episode.number} | #{moment(item.airs_at).format('HH:mm')}"
             data:
               showID: item.show.ids.trakt
               showTitle: item.show.title
@@ -302,7 +302,7 @@ class Upcoming
             title: data.showTitle
             subtitle: "Season #{data.seasonNumber} Ep. #{data.episodeNumber}"
             body: "Airs on #{moment(data.airs_at).format(@userDateFormat)}\n\
-                   at #{moment(data.airs_at).format('HH:MM')}\n\
+                   at #{moment(data.airs_at).format('HH:mm')}\n\
                    Title: #{episodeInfo.title}\n\
                    Overview: #{episodeInfo.overview}"
 
