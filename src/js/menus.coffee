@@ -115,7 +115,6 @@ class ToWatch
       console.log "element before the change: #{JSON.stringify e.item}"
       element = e.item
       data = e.item.data
-      originalSubtitle = element.subtitle
 
       displaySubtitle = (text) =>
         element.subtitle = text
@@ -132,7 +131,7 @@ class ToWatch
               displaySubtitle "Failed"
 
               window.setTimeout(
-                () => displaySubtitle originalSubtitle
+                () => displaySubtitle data.originalSubtitle
                 2000
               )
               return
@@ -142,7 +141,7 @@ class ToWatch
             @menu.item e.sectionIndex, e.itemIndex, element
 
             window.setTimeout(
-              () => displaySubtitle originalSubtitle
+              () => displaySubtitle data.originalSubtitle
               2000
             )
       else
@@ -156,7 +155,7 @@ class ToWatch
               displaySubtitle "Failed"
 
               window.setTimeout(
-                () => displaySubtitle originalSubtitle
+                () => displaySubtitle data.originalSubtitle
                 2000
               )
               return
@@ -166,7 +165,7 @@ class ToWatch
             @menu.item e.sectionIndex, e.itemIndex, element
 
             window.setTimeout(
-              () => displaySubtitle originalSubtitle
+              () => displaySubtitle data.originalSubtitle
               2000
             )
 
@@ -183,6 +182,7 @@ class ToWatch
 
                 newItem = @_createItem(
                   data.showID
+                  data.shotTItle
                   show.next_episode.title
                   show.next_episode.season
                   show.next_episode.number
@@ -195,30 +195,36 @@ class ToWatch
                 @menu.item e.sectionIndex, e.section.items.length, newItem
 
 
-    @menu.on 'select', (e) ->
+    @menu.on 'select', (e) =>
       element = e.item
       data = element.data
-      trakttv.getOrFetchEpisodeData data.showID, data.seasonNumber, data.episodeNumber, (episode) ->
-        detailedItemCard = createDefaultCard
-          title: episode.showTitle
-          subtitle: "Season #{episode.seasonNumber} Ep. #{episode.episodeNumber}"
-          body: "Title: #{episode.episodeTitle}\n\
-                 Overview: #{episode.overview}"
+      trakttv.getEpisodeData data.showID, data.seasonNumber, data.episodeNumber,
+        (err, episodeInfo) =>
+          detailedItemCard = createDefaultCard
+            title: data.showTitle
+            subtitle: "Season #{data.seasonNumber} Ep. #{data.episodeNumber}"
+            body: "Title: #{episodeInfo.title}\n\
+                   Overview: #{episodeInfo.overview}"
 
-        detailedItemCard.show()
+          detailedItemCard.show()
 
     console.log "toWatchmenu created"
 
-  _createItem: (showID, episodeTitle, seasonNumber, episodeNumber, isNextEpisodeListed, completed) ->
-    title: episodeTitle
-    subtitle: "Season #{seasonNumber} Ep. #{episodeNumber}"
-    icon: if completed then @icons.checked else @icons.unchecked
-    data:
-      showID: showID
-      episodeNumber: episodeNumber
-      seasonNumber: seasonNumber
-      completed: completed
-      isNextEpisodeListed: isNextEpisodeListed # TODO: delete me
+  _createItem: (showID, showTitle, episodeTitle, seasonNumber, episodeNumber, isNextEpisodeListed, completed) ->
+    subtitle = "Season #{seasonNumber} Ep. #{episodeNumber}"
+    return {
+      title: episodeTitle
+      subtitle: subtitle
+      icon: if completed then @icons.checked else @icons.unchecked
+      data:
+        showID: showID
+        showTitle: showTitle
+        originalSubtitle: subtitle
+        episodeNumber: episodeNumber
+        seasonNumber: seasonNumber
+        completed: completed
+        isNextEpisodeListed: isNextEpisodeListed # TODO: delete me
+    }
 
 
   update: (shows) ->
@@ -228,6 +234,7 @@ class ToWatch
         items: [
           @_createItem(
             item.show.ids.trakt
+            item.show.title
             item.next_episode.title
             item.next_episode.season
             item.next_episode.number
