@@ -330,30 +330,23 @@ trakttv.checkInEpisode = (episodeObj, cb) ->
     (err, status, req) ->
       cb(err, status, req)
 
-trakttv.modifyCheckState = (opt, success, failure) ->
-  # console.log("Check watched! episode: #{JSON.stringify(episode)}")
-  console.log "checkWatched: opt: #{JSON.stringify opt}"
-  if opt.episodeNumber? and not opt.seasonNumber?
-    throw new Error("Not enough data given: #{JSON.stringify opt}")
-    return
-
-  opt.completed ?= true
-
+trakttv.modifyEpisodeCheckState = (showID, seasonNumber, episodeNumber, state, cb) ->
   request =
     shows: [
-      ids: trakt: opt.showID
+      ids: trakt: showID
       seasons: [{
-        number: opt.seasonNumber
+        number: seasonNumber
         episodes: [{
-          number: opt.episodeNumber
-        }] if opt.episodeNumber
-      }] if opt.seasonNumber
+          number: episodeNumber
+        }]
+      }]
     ]
 
-  action = if opt.completed
-    '/sync/history'
-  else
-    '/sync/history/remove'
+  action =
+    if state == 'check'
+      '/sync/history'
+    else
+      '/sync/history/remove'
 
   console.log "request: POST #{action} params:#{JSON.stringify request}"
   trakttv.request
@@ -364,14 +357,20 @@ trakttv.modifyCheckState = (opt, success, failure) ->
       console.log "Check succeeded: req: #{JSON.stringify request}"
       console.log "response: #{JSON.stringify response}"
       # console.log "#{index}: #{key}: #{value}" for key, value of index for index in shows
-      for item in shows when item.show.ids.trakt == opt.showID
-        for season in item.seasons when not opt.seasonNumber? or season.number == opt.seasonNumber
-          for episode in season.episodes when not opt.episodeNumber? or episode.number == opt.episodeNumber
-            episode.completed = opt.completed
-            console.log "Marking as seen #{item.show.title} S#{season.number}E#{episode.number}, #{episode.completed}"
-      success()
+      # for item in shows when item.show.ids.trakt == showID
+      #   for season in item.seasons when not seasonNumber? or season.number == seasonNumber
+      #     for episode in season.episodes when not episodeNumber? or episode.number == episodeNumber
+      #       episode.completed = completed
+      #       console.log "Marking as seen #{item.show.title} S#{season.number}E#{episode.number}, #{episode.completed}"
+      cb null
     (response, status, req) ->
       console.log "Check FAILURE"
-      failure(response, status, req)
+      cb status
+
+trakttv.checkEpisode = (showID, seasonNumber, episodeNumber, cb) ->
+  trakttv.modifyEpisodeCheckState showID, seasonNumber, episodeNumber, 'check', cb
+
+trakttv.uncheckEpisode = (showID, seasonNumber, episodeNumber, cb) ->
+  trakttv.modifyEpisodeCheckState showID, seasonNumber, episodeNumber, 'uncheck', cb
 
 module.exports = trakttv

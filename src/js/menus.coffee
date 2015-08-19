@@ -104,7 +104,6 @@ class ToWatch
     @icons =
       checked: ICON_MENU_CHECKED
       unchecked: ICON_MENU_UNCHECKED
-    # TODO: use createDefaultMenu when sections will display correctly
     @menu = createDefaultMenu()
 
     @initHandlers()
@@ -116,65 +115,85 @@ class ToWatch
       console.log "element before the change: #{JSON.stringify e.item}"
       element = e.item
       data = e.item.data
-      data.previousSubtitle = element.subtitle
+      originalSubtitle = element.subtitle
 
-      element.subtitle =
-        if element.data.completed
-          "Unchecking..."
-        else
-          "Checking..."
+      displaySubtitle = (text) =>
+        element.subtitle = text
+        @menu.item e.sectionIndex, e.itemIndex, element
 
-      markAsCompleted = not element.data.completed
+      if element.data.completed
+        # We need to uncheck
+        displaySubtitle "Unchecking..."
 
-      @menu.item(e.sectionIndex, e.itemIndex, element)
+        trakttv.uncheckEpisode data.showID, data.seasonNumber, data.episodeNumber,
+          (err) =>
+            if err?
+              # Rollback
+              displaySubtitle "Failed"
 
-      trakttv.modifyCheckState
-        showID: data.showID
-        episodeNumber: data.episodeNumber
-        seasonNumber: data.seasonNumber
-        completed: markAsCompleted
-        () =>
-          isNowCompleted = not data.completed
-          console.log "episode is now #{JSON.stringify e.item}"
-
-          if isNowCompleted
-            element.data.completed = true
-            element.icon = @icons.checked
-          else
+              window.setTimeout(
+                () => displaySubtitle originalSubtitle
+                2000
+              )
+              return
             element.data.completed = false
             element.icon = @icons.unchecked
+            element.subtitle = "Unchecked!"
+            @menu.item e.sectionIndex, e.itemIndex, element
 
-          element.subtitle = element.data.previousSubtitle
-          delete element.data.previousSubtitle
+            window.setTimeout(
+              () => displaySubtitle originalSubtitle
+              2000
+            )
+      else
+        # We need to check
+        displaySubtitle "Checking..."
 
-          @menu.item(e.sectionIndex, e.itemIndex, element)
+        trakttv.checkEpisode data.showID, data.seasonNumber, data.episodeNumber,
+          (err) =>
+            if err?
+              # Rollback
+              displaySubtitle "Failed"
 
-          if isNowCompleted and not element.isNextEpisodeListed
-            # TODO: clean this mess using getEpisodeData
-            trakttv.fetchShowProgress data.showID, (err, reloadedShow) =>
-              # TODO: if err, reset the checked flag and subtitles
-              return if err?
-              console.log "RELOADED ShowID: #{data.showID}"
+              window.setTimeout(
+                () => displaySubtitle originalSubtitle
+                2000
+              )
+              return
+            element.data.completed = true
+            element.icon = @icons.checked
+            element.subtitle = "Checked!"
+            @menu.item e.sectionIndex, e.itemIndex, element
 
-              if isNextEpisodeForItemAired(reloadedShow) and not element.isNextEpisodeListed
+            window.setTimeout(
+              () => displaySubtitle originalSubtitle
+              2000
+            )
+
+            if element.isNextEpisodeListed
+              return
+            trakttv.fetchShowProgress data.showID,
+              (err, show) =>
+                # TODO: if err, reset the checked flag and subtitles
+                return if err?
+                console.log "RELOADED ShowID: #{data.showID}"
+                if not isNextEpisodeForItemAired(show)
+                  return
                 element.isNextEpisodeListed = true
 
                 newItem = @_createItem(
-                  showID: data.showID
-                  episodeTitle: reloadedShow.next_episode.title
-                  seasonNumber: reloadedShow.next_episode.season
-                  episodeNumber: reloadedShow.next_episode.number
-                  completed: false
+                  data.showID
+                  show.next_episode.title
+                  show.next_episode.season
+                  show.next_episode.number
+                  false
+                  false
                 )
                 console.log "toWatchMenu.item(#{e.sectionIndex}, #{e.section.items.length}, #{JSON.stringify newItem}"
 
                 # TODO: use a function to add items
-                @menu.item(e.sectionIndex, e.section.items.length, newItem)
-        () ->
-          element.subtitle = element.data.previousSubtitle
-          delete element.data.previousSubtitle
+                @menu.item e.sectionIndex, e.section.items.length, newItem
 
-          @menu.item(e.sectionIndex, e.itemIndex, element)
 
     @menu.on 'select', (e) ->
       element = e.item
@@ -190,24 +209,17 @@ class ToWatch
 
     console.log "toWatchmenu created"
 
-  _createItem: (opt) ->
-    for key in ['showID', 'episodeTitle', 'seasonNumber', 'episodeNumber', 'completed']
-      unless opt[key]?
-        console.log "ERROR: #{key} not in #{JSON.stringify opt}"
-        return
-    # console.log "opt.completed: #{opt.completed}"
-    # console.log "icon chosed: " + JSON.stringify @icons
-    {
-      title: opt.episodeTitle
-      subtitle: "Season #{opt.seasonNumber} Ep. #{opt.episodeNumber}"
-      icon: if opt.completed then @icons.checked else @icons.unchecked
-      data:
-        showID: opt.showID
-        episodeNumber: opt.episodeNumber
-        seasonNumber: opt.seasonNumber
-        completed: opt.completed
-        isNextEpisodeListed: opt.isNextEpisodeListed # TODO: delete me
-    }
+  _createItem: (showID, episodeTitle, seasonNumber, episodeNumber, isNextEpisodeListed, completed) ->
+    title: episodeTitle
+    subtitle: "Season #{seasonNumber} Ep. #{episodeNumber}"
+    icon: if completed then @icons.checked else @icons.unchecked
+    data:
+      showID: showID
+      episodeNumber: episodeNumber
+      seasonNumber: seasonNumber
+      completed: completed
+      isNextEpisodeListed: isNextEpisodeListed # TODO: delete me
+
 
   update: (shows) ->
     sections =
@@ -215,15 +227,17 @@ class ToWatch
         title: item.show.title
         items: [
           @_createItem(
-            showID: item.show.ids.trakt
-            episodeTitle: item.next_episode.title
-            seasonNumber: item.next_episode.season
-            episodeNumber: item.next_episode.number
-            completed: false
+            item.show.ids.trakt
+            item.next_episode.title
+            item.next_episode.season
+            item.next_episode.number
+            false
+            false                     # completed
           )
         ]
       } for item in shows when isNextEpisodeForItemAired(item)
 
+    # TODO: use a better method to clear sections (sections > 1 might remain)
     if sections.length == 0
       sections = [
         items: [
