@@ -14,19 +14,51 @@ ICON_MENU_CALENDAR = 'images/icon_calendar.png'
 ICON_MENU_EYE = 'images/icon_eye.png'
 ICON_MENU_HOME = 'images/icon_home.png'
 
-menuDefaults =
-  if Pebble.getActiveWatchInfo?().platform == "basalt"
-    backgroundColor: 'black'
+colorsAvailable = Pebble.getActiveWatchInfo?().platform == "basalt"
+
+defaults =
+  if colorsAvailable
+    backgroundColor: 'oxfordBlue'
     textColor: 'white'
-    highlightBackgroundColor: 'vividCerulean'
-    highlightTextColor: 'white'
-    fullscreen: true
+    thirdColor: 'orange'
   else
     backgroundColor: 'white'
     textColor: 'black'
-    highlightBackgroundColor: 'black'
+    thirdColor: 'black'
+
+menuDefaults =
+  if colorsAvailable
+    backgroundColor: defaults.backgroundColor
+    textColor: defaults.textColor
+    highlightBackgroundColor: defaults.thirdColor #
     highlightTextColor: 'white'
+    fullscreen: true
+  else
+    backgroundColor: defaults.backgroundColor
+    textColor: defaults.textColor
+    highlightBackgroundColor: defaults.backgroundColor
+    highlightTextColor: defaults.textColor
     fullscreen: false
+
+cardDefaults =
+  if colorsAvailable
+    backgroundColor: defaults.backgroundColor
+    textColor: defaults.textColor
+    titleColor: defaults.thirdColor
+    subtitleColor: defaults.thirdColor
+    bodyColor: defaults.textColor
+    fullscreen: true
+    style: 'small'
+    scrollable: true
+  else
+    backgroundColor: defaults.backgroundColor
+    textColor: defaults.textColor
+    titleColor: defaults.textColor
+    subtitleColor: defaults.textColor
+    bodyColor: defaults.textColor
+    fullscreen: false
+    style: 'small'
+    scrollable: true
 
 
 createDefaultMenu = (menuDef) ->
@@ -40,6 +72,9 @@ createDefaultMenu = (menuDef) ->
   ]
   new UI.Menu options
 
+createDefaultCard = (cardDef) ->
+  options = myutil.shadow(cardDefaults, cardDef || {})
+  new UI.Card options
 
 isNextEpisodeForItemAired = (item) ->
   # console.log "isNextEpisodeForItemAired of item: #{JSON.stringify item.show.title}"
@@ -70,15 +105,7 @@ class ToWatch
       checked: ICON_MENU_CHECKED
       unchecked: ICON_MENU_UNCHECKED
     # TODO: use createDefaultMenu when sections will display correctly
-    @menu = new UI.Menu(
-      sections:[
-        {
-          items: [{
-            title: "Loading shows..."
-            }]
-        }
-      ]
-    )
+    @menu = createDefaultMenu()
 
     @initHandlers()
 
@@ -153,14 +180,12 @@ class ToWatch
       element = e.item
       data = element.data
       trakttv.getOrFetchEpisodeData data.showID, data.seasonNumber, data.episodeNumber, (episode) ->
-        detailedItemCard = new UI.Card(
+        detailedItemCard = createDefaultCard
           title: episode.showTitle
           subtitle: "Season #{episode.seasonNumber} Ep. #{episode.episodeNumber}"
           body: "Title: #{episode.episodeTitle}\n\
                  Overview: #{episode.overview}"
-          style: 'small'
-          scrollable: true
-        )
+
         detailedItemCard.show()
 
     console.log "toWatchmenu created"
@@ -212,15 +237,7 @@ menus.ToWatch = ToWatch
 
 class Upcoming
   constructor: (@userDateFormat = "D MMMM YYYY") ->
-    @menu = new UI.Menu(
-      sections:[
-        {
-          items: [{
-            title: "Loading Calendar..."
-            }]
-        }
-      ]
-    )
+    @menu = createDefaultMenu()
 
     @initHandlers()
     # @reload()
@@ -257,14 +274,12 @@ class Upcoming
       trakttv.getOrFetchEpisodeData data.showID, data.seasonNumber, data.episodeNumber, (episode) ->
         # console.log "response for #{data.showID}, #{data.seasonNumber}, #{data.episodeNumber}"
         # console.log "--> #{JSON.stringify episode}"
-        detailedItemCard = new UI.Card(
+        detailedItemCard = createDefaultCard
           title: episode.showTitle
           subtitle: "Season #{episode.seasonNumber} Ep. #{episode.episodeNumber}"
           body: "Title: #{episode.episodeTitle}\n\
                  Overview: #{episode.overview}"
-          style: 'small'
-          scrollable: true
-        )
+
         detailedItemCard.show()
 
 menus.Upcoming = Upcoming
@@ -329,14 +344,12 @@ class MyShows
             episodesMenu.on 'select', (e) ->
               data = e.item.data
               # TODO: colorize this card
-              detailedItemCard = new UI.Card(
+              detailedItemCard = createDefaultCard
                 title: showTitle
                 subtitle: "Season #{data.seasonNumber} Ep. #{data.episodeNumber}"
                 body: "Title: #{data.episodeTitle}\n\
                        Overview: #{data.overview}"
-                style: 'small'
-                scrollable: true
-              )
+
               detailedItemCard.show()
           )
   update: (shows) ->
@@ -366,7 +379,7 @@ class Main
     @upcomingMenu = opts.upcomingMenu
     @myShowsMenu = opts.myShowsMenu
     @advancedMenu = opts.advancedMenu
-    @menu = new UI.Menu
+    @menu = createDefaultMenu
       sections: [
         items: [{
           title: 'To watch'
@@ -411,7 +424,7 @@ menus.Main = Main
 class Advanced
   constructor: (opts) ->
     @initSettings = opts.initSettings
-    @menu = new UI.Menu
+    @menu = createDefaultMenu
       sections: [
         items: [
           {
