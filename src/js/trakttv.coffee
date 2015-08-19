@@ -150,6 +150,8 @@ trakttv.getEpisodeData = (showID, seasonNumber, episodeNumber, callback) ->
       result.number = response.number
 
       trakttv.searchEpisode episodeID, (err, response) ->
+        return callback(err) if err?
+
         result.overview = response.episode.overview
         result.images = response.episode.images
 
@@ -160,6 +162,8 @@ trakttv.getEpisodeData = (showID, seasonNumber, episodeNumber, callback) ->
         events.emit 'update', 'episode', episode: result
 
         callback null, result
+    (response, status, req) ->
+      callback status
 
 #   {
 #     "type":"episode",
