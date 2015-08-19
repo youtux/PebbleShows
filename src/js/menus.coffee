@@ -77,8 +77,6 @@ createDefaultCard = (cardDef) ->
   new UI.Card options
 
 isNextEpisodeForItemAired = (item) ->
-  # console.log "isNextEpisodeForItemAired of item: #{JSON.stringify item.show.title}"
-  # console.log "item.next_episode #{JSON.stringify item.next_episode}"
   return false unless item.next_episode?
   if item.next_episode.season > item.seasons.length
     return false
@@ -112,7 +110,6 @@ class ToWatch
 
   initHandlers: ->
     @menu.on 'longSelect', (e) =>
-      console.log "element before the change: #{JSON.stringify e.item}"
       element = e.item
       data = e.item.data
 
@@ -175,7 +172,6 @@ class ToWatch
               (err, show) =>
                 # TODO: if err, reset the checked flag and subtitles
                 return if err?
-                console.log "RELOADED ShowID: #{data.showID}"
                 if not isNextEpisodeForItemAired(show)
                   return
                 data.isNextEpisodeListed = true
@@ -189,7 +185,6 @@ class ToWatch
                   false
                   false
                 )
-                console.log "toWatchMenu.item(#{e.sectionIndex}, #{e.section.items.length}, #{JSON.stringify newItem}"
 
                 # TODO: use a function to add items
                 @menu.item e.sectionIndex, e.section.items.length, newItem
@@ -208,7 +203,6 @@ class ToWatch
 
           detailedItemCard.show()
 
-    console.log "toWatchmenu created"
 
   _createItem: (showID, showTitle, episodeTitle, seasonNumber, episodeNumber, isNextEpisodeListed, completed) ->
     subtitle = "Season #{seasonNumber} Ep. #{episodeNumber}"
@@ -228,6 +222,7 @@ class ToWatch
 
 
   update: (shows) ->
+    console.log "Updating toWatch"
     sections =
       {
         title: item.show.title
@@ -251,7 +246,7 @@ class ToWatch
           title: "No shows to watch"
         ]
       ]
-    console.log "Updating toWatch"
+
     @menu.section(idx, s) for s, idx in sections
 
 menus.ToWatch = ToWatch
@@ -265,7 +260,7 @@ class Upcoming
     # @reload()
 
   update: (calendar) ->
-    # console.log "Updating UpcomingMenu: #{JSON.stringify calendar}"
+    console.log "Updating Upcoming"
     sections =
       {
         title: moment(date).format(@userDateFormat)
@@ -283,7 +278,6 @@ class Upcoming
           } for item in items when moment(item.airs_at).isAfter(@fromDate)
       } for date, items of calendar
 
-    # console.log "---- #{JSON.stringify sections}"
 
     @menu.section(idx, s) for s, idx in sections
     # sections.forEach (s, idx) => @menu.section(idx, s)
@@ -379,6 +373,7 @@ class MyShows
               detailedItemCard.show()
           )
   update: (shows) ->
+    console.log "Updating MyShows"
     sortedShows = shows[..]
     sortedShows.sort compareByFunction (e) -> moment(e.last_watched_at)
 
@@ -395,7 +390,6 @@ class MyShows
     ]
 
     @menu.section(idx, s) for s, idx in sections
-    console.log "showsMenu updated"
 
 menus.MyShows = MyShows
 

@@ -16,7 +16,6 @@ trakttv.on = (args...) -> events.on(args...)
 
 trakttv.request = (opt, callback) ->
   console.log "trakttv.request: opt: #{JSON.stringify opt}"
-  # console.log success
   if typeof opt == 'string'
     opt = if opt.indexOf('http') == 0
       url: opt
@@ -78,7 +77,6 @@ trakttv.fetchToWatchList = (callback) ->
 
             doneItem()
           (status) ->
-            console.log "Failed: #{status}"
             doneItem()
       (err) ->
         events.emit 'update', 'shows', shows: shows
@@ -133,7 +131,6 @@ trakttv.getEpisodeData = (showID, seasonNumber, episodeNumber, callback) ->
     (err, response) =>
       return callback(err) if err?
 
-      console.log "fetch episode id and title response: #{JSON.stringify response}"
       result.title = response.title
       result.episodeID = episodeID = response.ids.trakt
       result.season = response.season
@@ -272,7 +269,6 @@ trakttv.modifyEpisodeCheckState = (showID, seasonNumber, episodeNumber, state, c
     else
       '/sync/history/remove'
 
-  console.log "request: POST #{action} params:#{JSON.stringify request}"
   trakttv.request
     action: action
     method: 'POST'
@@ -280,13 +276,6 @@ trakttv.modifyEpisodeCheckState = (showID, seasonNumber, episodeNumber, state, c
     (err, response) =>
       return callback(err) if err?
 
-      console.log "Check succeeded: response: #{JSON.stringify response}"
-      # console.log "#{index}: #{key}: #{value}" for key, value of index for index in shows
-      # for item in shows when item.show.ids.trakt == showID
-      #   for season in item.seasons when not seasonNumber? or season.number == seasonNumber
-      #     for episode in season.episodes when not episodeNumber? or episode.number == episodeNumber
-      #       episode.completed = completed
-      #       console.log "Marking as seen #{item.show.title} S#{season.number}E#{episode.number}, #{episode.completed}"
       callback null
 
 trakttv.checkEpisode = (showID, seasonNumber, episodeNumber, callback) ->

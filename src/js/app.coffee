@@ -162,8 +162,8 @@ dispatchTimelineAction = (launchCode) ->
 
 checkLaunchEvent = ->
   Timeline.launch (e) ->
-    console.log "Launch reason: #{JSON.stringify e}"
     if e.action
+      console.log "Timeline launch! launchCode: #{launchCode}"
       launchCode = e.launchCode
       dispatchTimelineAction(launchCode)
 
