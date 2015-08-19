@@ -256,6 +256,7 @@ class ToWatch
 
 menus.ToWatch = ToWatch
 
+# TODO: Fetch user preferences, and show correct date/hour
 class Upcoming
   constructor: (@userDateFormat = "D MMMM YYYY") ->
     @menu = createDefaultMenu()
@@ -274,8 +275,10 @@ class Upcoming
             subtitle: "S#{item.episode.season}E#{item.episode.number} | #{moment(item.airs_at).format('HH:MM')}"
             data:
               showID: item.show.ids.trakt
+              showTitle: item.show.title
               seasonNumber: item.episode.season
               episodeNumber: item.episode.number
+              airs_at: item.airs_at
 
           } for item in items when moment(item.airs_at).isAfter(@fromDate)
       } for date, items of calendar
@@ -289,19 +292,21 @@ class Upcoming
     @menu.show()
 
   initHandlers: ->
-    @menu.on 'select', (e) ->
-      element = e.item
-      data = element.data
-      trakttv.getOrFetchEpisodeData data.showID, data.seasonNumber, data.episodeNumber, (episode) ->
-        # console.log "response for #{data.showID}, #{data.seasonNumber}, #{data.episodeNumber}"
-        # console.log "--> #{JSON.stringify episode}"
-        detailedItemCard = createDefaultCard
-          title: episode.showTitle
-          subtitle: "Season #{episode.seasonNumber} Ep. #{episode.episodeNumber}"
-          body: "Title: #{episode.episodeTitle}\n\
-                 Overview: #{episode.overview}"
+    @menu.on 'select', (e) =>
+      data = e.item.data
 
-        detailedItemCard.show()
+      trakttv.getEpisodeData data.showID, data.seasonNumber, data.episodeNumber,
+        (err, episodeInfo) =>
+          #TODO: handle error
+          detailedItemCard = createDefaultCard
+            title: data.showTitle
+            subtitle: "Season #{data.seasonNumber} Ep. #{data.episodeNumber}"
+            body: "Airs on #{moment(data.airs_at).format(@userDateFormat)}\n\
+                   at #{moment(data.airs_at).format('HH:MM')}\n\
+                   Title: #{episodeInfo.title}\n\
+                   Overview: #{episodeInfo.overview}"
+
+          detailedItemCard.show()
 
 menus.Upcoming = Upcoming
 
