@@ -54,8 +54,8 @@ setupEvents = ->
     upcomingMenu.update(calendar)
 
 fetchData = ->
-  trakttv.getCalendar(moment().subtract(1, 'day').format('YYYY-MM-DD'), 7)
-  trakttv.fetchToWatchList()
+  trakttv.getCalendar(moment().subtract(1, 'day').format('YYYY-MM-DD'), 7, ->)
+  trakttv.fetchToWatchList(->)
 
 updateSubscriptions = (shows) ->
   if subscriptionsAlreadyUpdated
@@ -118,7 +118,7 @@ dispatchTimelineAction = (launchCode) ->
           body: "Please wait"
         statusCard.show()
 
-        trakttv.markEpisode(episodeID, true, null,
+        trakttv.markEpisode episodeID, true, null,
           (err, result) ->
             console.log("MarkAsSeen #{episodeID}. err: #{err}")
             notification =
@@ -132,14 +132,14 @@ dispatchTimelineAction = (launchCode) ->
                   body: "Episode marked as seen."
             notification.show()
             statusCard.hide()
-          )
+
       else if action == 'checkIn'
         statusCard = cards.noEscape
           title: "Checking-in episode..."
           body: "Please wait"
         statusCard.show()
 
-        trakttv.checkInEpisode(episodeID,
+        trakttv.checkInEpisode episodeID,
           (err, result) ->
             console.log("CheckIn #{episodeID}. err: #{JSON.stringify err}, result: #{JSON.stringify result}")
             notification =
@@ -158,7 +158,6 @@ dispatchTimelineAction = (launchCode) ->
                   body: "Episode check'd in. Enjoy it!"
             notification.show()
             statusCard.hide()
-          )
     )
 
 checkLaunchEvent = ->

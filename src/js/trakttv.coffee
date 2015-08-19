@@ -14,7 +14,7 @@ trakttv.BASE_URL = 'https://api-v2launch.trakt.tv'
 
 trakttv.on = (args...) -> events.on(args...)
 
-trakttv.request = (opt, success, failure) ->
+trakttv.request = (opt, callback) ->
   console.log "trakttv.request: opt: #{JSON.stringify opt}"
   # console.log success
   if typeof opt == 'string'
@@ -43,29 +43,23 @@ trakttv.request = (opt, success, failure) ->
       Authorization: "Bearer #{accessToken}"
     method: opt.method
     data: opt.data
-    success
+    (response, status, req) =>
+      callback null, response
     (response, status, req) ->
       if status == 401
         console.log "Server says that authorization is required"
         events.emit 'authorizationRequired', message: 'Authorization required from server'
       console.log "Request failure (#{status} #{opt.method} #{opt.url})"
-      failure? response, status, req
+      callback status
 
 
-trakttv.getShows = (cb) ->
-  trakttv.request '/sync/watched/shows',
-    (response, status, req) ->
-      # console.log "Returned shows: #{JSON.stringify shows.map (e)->e.show}"
-      # trakttv.getToWatchList response, cb
-      cb(null, response)
-    (response, status, req) ->
-      cb(status)
+trakttv.getShows = (callback) ->
+  trakttv.request '/sync/watched/shows', callback
 
 
-trakttv.fetchToWatchList = (cb) ->
+trakttv.fetchToWatchList = (callback) ->
   trakttv.getShows (err, shows) ->
-    # TODO: Check err
-    return if err?
+    return callback(err) if err?
 
     async.each(
       shows,
@@ -88,24 +82,19 @@ trakttv.fetchToWatchList = (cb) ->
             doneItem()
       (err) ->
         events.emit 'update', 'shows', shows: shows
-        cb? err, shows
+        callback err, shows
     )
 
-trakttv.getCalendar = (fromDate, daysWindow, cb) ->
+trakttv.getCalendar = (fromDate, daysWindow, callback) ->
   trakttv.request "/calendars/shows/#{fromDate}/#{daysWindow}",
-    (response, status, req) =>
-      events.emit 'update', 'calendar', calendar: response
-      cb?(null, response)
-    (response, status, req) =>
-      console.log "Failed to fetch the calendar"
-      cb?(status)
+    (err, response) =>
+      return callback(err) if err?
 
-trakttv.fetchShowProgress = (showID, cb) ->
-  trakttv.request "/shows/#{showID}/progress/watched",
-    (response, status, req) ->
-      cb(null, response)
-    (response, status, req) ->
-      cb(status)
+      events.emit 'update', 'calendar', calendar: response
+      callback null, response
+
+trakttv.fetchShowProgress = (showID, callback) ->
+  trakttv.request "/shows/#{showID}/progress/watched", callback
 
 # {
 #   season: 1,
@@ -141,7 +130,9 @@ trakttv.getEpisodeData = (showID, seasonNumber, episodeNumber, callback) ->
 #   }
 # }
   trakttv.request "/shows/#{showID}/seasons/#{seasonNumber}/episodes/#{episodeNumber}",
-    (response, status, req) ->
+    (err, response) =>
+      return callback(err) if err?
+
       console.log "fetch episode id and title response: #{JSON.stringify response}"
       result.title = response.title
       result.episodeID = episodeID = response.ids.trakt
@@ -161,8 +152,6 @@ trakttv.getEpisodeData = (showID, seasonNumber, episodeNumber, callback) ->
         events.emit 'update', 'episode', episode: result
 
         callback null, result
-    (response, status, req) ->
-      callback status
 
 #   {
 #     "type":"episode",
@@ -208,14 +197,14 @@ trakttv.getEpisodeData = (showID, seasonNumber, episodeNumber, callback) ->
 #       }
 #     }
 #   }
-trakttv.searchEpisode = (episodeID, cb) ->
+trakttv.searchEpisode = (episodeID, callback) ->
   trakttv.request "/search?id_type=trakt-episode&id=#{episodeID}",
-    (response, status, req) ->
-      cb null, response[0]
-    (response, status, req) ->
-      cb status
+    (err, response) =>
+      return callback(err) if err?
 
-trakttv.markEpisode = (episodeObj, seen, watched_at, cb) ->
+      callback null, response[0]
+
+trakttv.markEpisode = (episodeObj, seen, watched_at, callback) ->
   episode =
     if (typeof episodeObj) == 'number'
       {
@@ -242,12 +231,9 @@ trakttv.markEpisode = (episodeObj, seen, watched_at, cb) ->
     action: action
     method: 'POST'
     data: body
-    (data, status, req) ->
-      cb(null, data)
-    (err, status, req) ->
-      cb(err, status, req)
+    callback
 
-trakttv.checkInEpisode = (episodeObj, cb) ->
+trakttv.checkInEpisode = (episodeObj, callback) ->
   episode =
     if (typeof episodeObj) == 'number'
       {
@@ -266,12 +252,9 @@ trakttv.checkInEpisode = (episodeObj, cb) ->
     data:
       episode: episode
       app_version: appinfo.versionLabel
-    (data, status, req) ->
-      cb(null, data)
-    (err, status, req) ->
-      cb(err, status, req)
+    callback
 
-trakttv.modifyEpisodeCheckState = (showID, seasonNumber, episodeNumber, state, cb) ->
+trakttv.modifyEpisodeCheckState = (showID, seasonNumber, episodeNumber, state, callback) ->
   request =
     shows: [
       ids: trakt: showID
@@ -294,24 +277,22 @@ trakttv.modifyEpisodeCheckState = (showID, seasonNumber, episodeNumber, state, c
     action: action
     method: 'POST'
     data: request
-    (response, status, req) ->
-      console.log "Check succeeded: req: #{JSON.stringify request}"
-      console.log "response: #{JSON.stringify response}"
+    (err, response) =>
+      return callback(err) if err?
+
+      console.log "Check succeeded: response: #{JSON.stringify response}"
       # console.log "#{index}: #{key}: #{value}" for key, value of index for index in shows
       # for item in shows when item.show.ids.trakt == showID
       #   for season in item.seasons when not seasonNumber? or season.number == seasonNumber
       #     for episode in season.episodes when not episodeNumber? or episode.number == episodeNumber
       #       episode.completed = completed
       #       console.log "Marking as seen #{item.show.title} S#{season.number}E#{episode.number}, #{episode.completed}"
-      cb null
-    (response, status, req) ->
-      console.log "Check FAILURE"
-      cb status
+      callback null
 
-trakttv.checkEpisode = (showID, seasonNumber, episodeNumber, cb) ->
-  trakttv.modifyEpisodeCheckState showID, seasonNumber, episodeNumber, 'check', cb
+trakttv.checkEpisode = (showID, seasonNumber, episodeNumber, callback) ->
+  trakttv.modifyEpisodeCheckState showID, seasonNumber, episodeNumber, 'check', callback
 
-trakttv.uncheckEpisode = (showID, seasonNumber, episodeNumber, cb) ->
-  trakttv.modifyEpisodeCheckState showID, seasonNumber, episodeNumber, 'uncheck', cb
+trakttv.uncheckEpisode = (showID, seasonNumber, episodeNumber, callback) ->
+  trakttv.modifyEpisodeCheckState showID, seasonNumber, episodeNumber, 'uncheck', callback
 
 module.exports = trakttv

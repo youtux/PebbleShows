@@ -453,10 +453,8 @@ class Advanced
     @menu = createDefaultMenu
       sections: [
         items: [
+          # TODO: an option to reset the menus
           {
-            title: 'Refresh shows'
-            action: -> trakttv.fetchToWatchList() # this needs to be a call to a fn that save the result to localStorage
-          }, {
             title: 'Reset local data'
             action: =>
               localStorage.clear()
