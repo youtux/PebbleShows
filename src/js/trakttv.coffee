@@ -6,7 +6,6 @@ Emitter = require('emitter')
 async = require('async')
 appinfo = require('appinfo')
 
-shows = Settings.data 'shows'
 events = new Emitter()
 
 trakttv = {}
