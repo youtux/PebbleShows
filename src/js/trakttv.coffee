@@ -216,68 +216,6 @@ trakttv.searchEpisode = (episodeID, cb) ->
     (response, status, req) ->
       cb status
 
-trakttv.getOrFetchEpisodeData = (showID, seasonNumber, episodeNumber, callback) ->
-  # toWatchMenu.on 'select', (e) ->
-  # element = e.item
-  # console.log "getOrFetchEpisodeData for #{showID}, #{seasonNumber}, #{episodeNumber}"
-  item = i for i in shows when i.show.ids.trakt == showID
-  # console.log "item: #{JSON.stringify item}"
-  season = s for s in item.seasons when s.number == seasonNumber
-  unless season?
-    season =
-      number: seasonNumber
-      aired: 0
-      completed: 0
-      episodes: []
-  # console.log "season: #{JSON.stringify season}"
-  episode = e for e in season.episodes when e.number == episodeNumber
-  # console.log "episode: #{JSON.stringify episode}"
-  unless episode?
-    episode =
-      number: episodeNumber
-      completed: false
-    season.episodes.push episode
-  # console.log "Considering episode: #{JSON.stringify episode}"
-
-  episode.seasonNumber = seasonNumber
-  episode.episodeNumber = episodeNumber
-  episode.showID = showID
-  episode.showTitle = item.show.title
-
-  getOrFetchOverview = (success) ->
-    if episode.overview?
-      # console.log "Overview already available"
-      success(episode)
-      return
-    # console.log "fetching overview..."
-    trakttv.request "/search?id_type=trakt-episode&id=#{episode.episodeID}",
-      (response, status, req) ->
-        # console.log "Fetched overview: #{response}"
-        if response
-          episode.overview = response[0].episode.overview
-          Settings.data shows: shows
-        success? episode
-
-  fetchEpisodeIDAndTitle = (showID, seasonNumber, episodeNumber, successFetchEpisodeIDAndTitle) ->
-    trakttv.request "/shows/#{showID}/seasons/#{seasonNumber}/episodes/#{episodeNumber}",
-      (response, status, req) ->
-        # console.log "fetchEpisodeIDAndTitle response: #{response}"
-        episode.episodeID = response.ids.trakt
-        episode.episodeTitle = response.title
-        Settings.data shows: shows
-
-        successFetchEpisodeIDAndTitle(episode) if successFetchEpisodeIDAndTitle?
-
-  if episode.episodeID? and episode.episodeTitle?
-    # console.log "going to fetch overview"
-    getOrFetchOverview callback
-  else
-    # console.log "going to fetch ep id and title"
-    fetchEpisodeIDAndTitle showID, seasonNumber, episodeNumber,
-      (episode) ->
-        # console.log "fetched id and title: #{JSON.stringify episode}"
-        getOrFetchOverview callback
-
 trakttv.markEpisode = (episodeObj, seen, watched_at, cb) ->
   episode =
     if (typeof episodeObj) == 'number'
