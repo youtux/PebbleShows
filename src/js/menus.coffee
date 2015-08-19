@@ -169,7 +169,7 @@ class ToWatch
               2000
             )
 
-            if element.isNextEpisodeListed
+            if data.isNextEpisodeListed
               return
             trakttv.fetchShowProgress data.showID,
               (err, show) =>
@@ -178,7 +178,7 @@ class ToWatch
                 console.log "RELOADED ShowID: #{data.showID}"
                 if not isNextEpisodeForItemAired(show)
                   return
-                element.isNextEpisodeListed = true
+                data.isNextEpisodeListed = true
 
                 newItem = @_createItem(
                   data.showID
