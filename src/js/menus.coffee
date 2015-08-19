@@ -463,6 +463,7 @@ class Advanced
               console.log "Local storage cleared"
           }, {
             title: "Version: #{Appinfo.versionLabel}"
+            action: ->
           }
         ]
       ]
