@@ -80,6 +80,11 @@ updateMenuSections = (menu, sections) ->
   menu.sections []
   menu.sections sections
 
+appendItemToSection = (menu, sectionIndex, newItem) ->
+  newItemPosition = (menu.section sectionIndex).items.length
+
+  menu.item sectionIndex, newItemPosition, newItem
+
 isNextEpisodeForItemAired = (item) ->
   return false unless item.next_episode?
   if item.next_episode.season > item.seasons.length
@@ -174,7 +179,7 @@ class ToWatch
               return
             trakttv.fetchShowProgress data.showID,
               (err, show) =>
-                # TODO: if err, reset the checked flag and subtitles
+                # TODO: display notification
                 return if err?
                 if not isNextEpisodeForItemAired(show)
                   return
@@ -190,8 +195,7 @@ class ToWatch
                   false
                 )
 
-                # TODO: use a function to add items
-                @menu.item e.sectionIndex, e.section.items.length, newItem
+                appendItemToSection(@menu, e.sectionIndex, newItem)
 
 
     @menu.on 'select', (e) =>
@@ -373,7 +377,6 @@ class MyShows
 
             episodesMenu.on 'select', (e) ->
               data = e.item.data
-              # TODO: colorize this card
               detailedItemCard = createDefaultCard
                 title: showTitle
                 subtitle: "Season #{data.seasonNumber} Ep. #{data.episodeNumber}"
