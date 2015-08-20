@@ -376,7 +376,7 @@ class MyShows
                     episodeNumber: episode.number
                 } for episode in episodes
             }]
-            updateMenuSections episodeMenu, episodesMenuSections
+            updateMenuSections episodesMenu, episodesMenuSections
 
             episodesMenu.on 'select', (e) ->
               data = e.item.data
