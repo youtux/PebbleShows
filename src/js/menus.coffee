@@ -87,6 +87,10 @@ appendItemToSection = (menu, sectionIndex, newItem) ->
 
   menu.item sectionIndex, newItemPosition, newItem
 
+changeSubtitleGivenEvent = (text, e) =>
+  e.subtitle = text
+  e.menu.item e.sectionIndex, e.itemIndex, e
+
 isNextEpisodeForItemAired = (item) ->
   return false unless item.next_episode?
   if item.next_episode.season > item.seasons.length
@@ -152,22 +156,18 @@ class ToWatch extends Menu
       element = e.item
       data = e.item.data
 
-      displaySubtitle = (text) =>
-        element.subtitle = text
-        @menu.item e.sectionIndex, e.itemIndex, element
-
       if element.data.completed
         # We need to uncheck
-        displaySubtitle "Unchecking..."
+        changeSubtitleGivenEvent "Unchecking...", e
 
         trakttv.uncheckEpisode data.showID, data.seasonNumber, data.episodeNumber,
           (err) =>
             if err?
               # Rollback
-              displaySubtitle "Failed"
+              changeSubtitleGivenEvent "Failed", e
 
               window.setTimeout(
-                () => displaySubtitle data.originalSubtitle
+                () => changeSubtitleGivenEvent data.originalSubtitle, e
                 2000
               )
               return
@@ -177,21 +177,21 @@ class ToWatch extends Menu
             @menu.item e.sectionIndex, e.itemIndex, element
 
             window.setTimeout(
-              () => displaySubtitle data.originalSubtitle
+              () => changeSubtitleGivenEvent data.originalSubtitle, e
               2000
             )
       else
         # We need to check
-        displaySubtitle "Checking..."
+        changeSubtitleGivenEvent "Checking...", e
 
         trakttv.checkEpisode data.showID, data.seasonNumber, data.episodeNumber,
           (err) =>
             if err?
               # Rollback
-              displaySubtitle "Failed"
+              changeSubtitleGivenEvent "Failed", e
 
               window.setTimeout(
-                () => displaySubtitle data.originalSubtitle
+                () => changeSubtitleGivenEvent data.originalSubtitle, e
                 2000
               )
               return
@@ -201,7 +201,7 @@ class ToWatch extends Menu
             @menu.item e.sectionIndex, e.itemIndex, element
 
             window.setTimeout(
-              () => displaySubtitle data.originalSubtitle
+              () => changeSubtitleGivenEvent data.originalSubtitle, e
               2000
             )
 
@@ -358,18 +358,14 @@ class MyShows extends Menu
       element = e.item
       data = e.item.data
 
-      displaySubtitle = (text) =>
-        element.subtitle = text
-        @menu.item e.sectionIndex, e.itemIndex, element
-
-      displaySubtitle "Loading..."
+      changeSubtitleGivenEvent "Loading...", e
 
       show = i for i in @shows when i.show.ids.trakt == data.showID
 
       seasonsMenu = new Seasons data.showID, data.showTitle, show.seasons
       seasonsMenu.whenReady (err) =>
         seasonsMenu.show()
-        displaySubtitle ""
+        changeSubtitleGivenEvent "", e
 
   update: (@shows) ->
     console.log "Updating MyShows"
@@ -439,12 +435,8 @@ class Seasons extends Menu
       element = e.item
       data = e.item.data
 
-      displaySubtitle = (text) =>
-        element.subtitle = text
-        @menu.item e.sectionIndex, e.itemIndex, element
-
       originalSubtitle = element.subtitle
-      displaySubtitle "Loading..."
+      changeSubtitleGivenEvent "Loading...", e
 
       season = s for s in seasons when s.number == data.seasonNumber
 
@@ -461,7 +453,7 @@ class Seasons extends Menu
           episodesMenu = new Episodes showTitle, episodes
           episodesMenu.whenReady (err) =>
             episodesMenu.show()
-            displaySubtitle originalSubtitle
+            changeSubtitleGivenEvent originalSubtitle, e
       )
     @readyEmitter.notify()
 
@@ -504,28 +496,25 @@ class Main extends Menu
       element = e.item
       id = e.item.data.id
 
-      displaySubtitle = (text) =>
-        element.subtitle = text
-        @menu.item e.sectionIndex, e.itemIndex, element
-
       switch id
         when 'toWatch'
-          displaySubtitle "Loading"
+          changeSubtitleGivenEvent "Loading...", e
           @toWatchMenu.whenReady (err) =>
             console.log "towatchMenu is ready!"
             @toWatchMenu.show()
-            displaySubtitle ""
+            changeSubtitleGivenEvent "", e
 
         when 'upcoming'
-          displaySubtitle "Loading"
+          changeSubtitleGivenEvent "Loading...", e
           @upcomingMenu.whenReady (err) =>
             @upcomingMenu.show()
-            displaySubtitle ""
+            changeSubtitleGivenEvent "", e
+
         when 'myShows'
-          displaySubtitle "Loading"
+          changeSubtitleGivenEvent "Loading", e
           @myShowsMenu.whenReady (err) =>
             @myShowsMenu.show()
-            displaySubtitle ""
+            changeSubtitleGivenEvent "", e
 
         when 'advanced'
           @advancedMenu.show()
