@@ -8,8 +8,6 @@ Emitter = require('emitter')
 
 trakttv = require('trakttv')
 
-menus = {}
-
 ICON_MENU_UNCHECKED = 'images/icon_menu_unchecked.png'
 ICON_MENU_CHECKED = 'images/icon_menu_checked.png'
 ICON_MENU_CALENDAR = 'images/icon_calendar.png'
@@ -289,8 +287,6 @@ class ToWatch extends Menu
 
     @readyEmitter.notify()
 
-menus.ToWatch = ToWatch
-
 class Upcoming extends Menu
   constructor: (@TimeFormatAccessor, @userDateFormat = "D MMMM YYYY") ->
     super
@@ -348,8 +344,6 @@ class Upcoming extends Menu
 
           detailedItemCard.show()
 
-menus.Upcoming = Upcoming
-
 class MyShows extends Menu
   constructor: () ->
     super
@@ -383,8 +377,6 @@ class MyShows extends Menu
     updateMenuSections @menu, sections
     @readyEmitter.notify()
 
-menus.MyShows = MyShows
-
 class Episodes extends Menu
   constructor: (showTitle, episodes) ->
     super
@@ -414,8 +406,6 @@ class Episodes extends Menu
       detailedItemCard.show()
 
     @readyEmitter.notify()
-
-menus.Episodes = Episodes
 
 class Seasons extends Menu
   constructor: (showID, showTitle, seasons) ->
@@ -457,15 +447,14 @@ class Seasons extends Menu
       )
     @readyEmitter.notify()
 
-menus.Seasons = Seasons
 
 class Main extends Menu
   constructor: (TimeFormatAccessor, initSettings, fetchData) ->
     super
-    @toWatchMenu = new menus.ToWatch()
-    @myShowsMenu = new menus.MyShows()
-    @upcomingMenu = new menus.Upcoming TimeFormatAccessor
-    @advancedMenu = new menus.Advanced initSettings, fetchData, TimeFormatAccessor
+    @toWatchMenu = new ToWatch()
+    @myShowsMenu = new MyShows()
+    @upcomingMenu = new Upcoming TimeFormatAccessor
+    @advancedMenu = new Advanced initSettings, fetchData, TimeFormatAccessor
 
     @menu = createDefaultMenu(
       sections: [
@@ -521,8 +510,6 @@ class Main extends Menu
 
     @readyEmitter.notify()
 
-menus.Main = Main
-
 class Advanced extends Menu
   constructor: (@initSettings, @fetchData, @TimeFormatAccessor) ->
     super
@@ -572,6 +559,9 @@ class Advanced extends Menu
             element.subtitle = "24h"
           @menu.item e.sectionIndex, e.itemIndex, element
 
-menus.Advanced = Advanced
-
-module.exports = menus
+module.exports =
+  Main: Main
+  ToWatch: ToWatch
+  Upcoming: Upcoming
+  MyShows: MyShows
+  Advanced: Advanced
