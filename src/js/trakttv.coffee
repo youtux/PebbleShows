@@ -71,7 +71,7 @@ trakttv.request = (opt, callback) ->
       if status == null
         err = new Error("Connection not available.")
       else
-        err = new Error("Communication error (#{statys}).")
+        err = new Error("Communication error (#{status}).")
 
       callback err
 

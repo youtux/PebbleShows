@@ -1,15 +1,14 @@
 UI = require('ui')
 
-cards = {}
+lookAndFeel = require('lookAndFeel')
+misc = require('misc')
 
 class Notification
-  constructor: (text, title = "Notification") ->
-    @card = new UI.Card(
-      subtitle: title
-      body: text
-    )
+  constructor: (cardDef) ->
+    @card = createDefaultCard cardDef
 
-  flash: (milliseconds = 3000) ->
+
+  flash: (milliseconds = lookAndFeel.TIMEOUT_CARD_NOTIFICATION) ->
     @card.show()
     window.setTimeout(
       => @card.hide(),
@@ -21,14 +20,26 @@ class Notification
   hide: -> @card.hide()
 
 flashError = (err) ->
-  new Notification(err.message, "Error").flash()
+  CRYING_FACE = "\uD83D\uDE22"
+  new Notification(
+    title: "Ooops #{CRYING_FACE}"
+    titleColor: 'white'
+    subtitle: 'Error'
+    body: err.message
+    style: 'large'
+  ).flash()
 
-cards.Notification = Notification
+createDefaultCard = (cardDef = {}) ->
+  new UI.Card misc.merge lookAndFeel.cardDefaults, cardDef
 
-cards.noEscape = (opt) ->
-  card = new UI.Card(opt)
+noEscape = (cardDef) ->
+  card = createDefaultCard(cardDef)
+  card.on 'click', 'back', ->
 
-  card.on 'click', 'back', -> null
-  return card
+  card
 
-module.exports = cards
+module.exports =
+  Notification: Notification
+  flashError: flashError
+  createDefaultCard: createDefaultCard
+  noEscape: noEscape

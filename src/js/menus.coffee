@@ -7,6 +7,9 @@ myutil = require('myutil')
 Emitter = require('emitter')
 
 trakttv = require('trakttv')
+misc = require('misc')
+cards = require('cards')
+lookAndFeel = require('lookAndFeel')
 
 ICON_MENU_UNCHECKED = 'images/icon_menu_unchecked.png'
 ICON_MENU_CHECKED = 'images/icon_menu_checked.png'
@@ -14,57 +17,8 @@ ICON_MENU_CALENDAR = 'images/icon_calendar.png'
 ICON_MENU_EYE = 'images/icon_eye.png'
 ICON_MENU_HOME = 'images/icon_home.png'
 
-TIMEOUT_SUBTITLE_NOTIFICATION = 2000
-
-colorsAvailable = Pebble.getActiveWatchInfo?().platform == "basalt"
-
-defaults =
-  if colorsAvailable
-    backgroundColor: 'oxfordBlue'
-    textColor: 'white'
-    thirdColor: 'orange'
-  else
-    backgroundColor: 'white'
-    textColor: 'black'
-    thirdColor: 'black'
-
-menuDefaults =
-  if colorsAvailable
-    backgroundColor: defaults.backgroundColor
-    textColor: defaults.textColor
-    highlightBackgroundColor: defaults.thirdColor #
-    highlightTextColor: 'white'
-    fullscreen: false
-  else
-    backgroundColor: defaults.backgroundColor
-    textColor: defaults.textColor
-    highlightBackgroundColor: defaults.backgroundColor
-    highlightTextColor: defaults.textColor
-    fullscreen: false
-
-cardDefaults =
-  if colorsAvailable
-    backgroundColor: defaults.backgroundColor
-    textColor: defaults.textColor
-    titleColor: defaults.thirdColor
-    subtitleColor: defaults.thirdColor
-    bodyColor: defaults.textColor
-    fullscreen: false
-    style: 'small'
-    scrollable: true
-  else
-    backgroundColor: defaults.backgroundColor
-    textColor: defaults.textColor
-    titleColor: defaults.textColor
-    subtitleColor: defaults.textColor
-    bodyColor: defaults.textColor
-    fullscreen: false
-    style: 'small'
-    scrollable: true
-
-
 createDefaultMenu = (menuDef) ->
-  options = myutil.shadow(menuDefaults, menuDef || {})
+  options = misc.merge(lookAndFeel.menuDefaults, menuDef || {})
   options.sections ?= [
     {
       items: [{
@@ -74,9 +28,6 @@ createDefaultMenu = (menuDef) ->
   ]
   new UI.Menu options
 
-createDefaultCard = (cardDef) ->
-  options = myutil.shadow(cardDefaults, cardDef || {})
-  new UI.Card options
 
 updateMenuSections = (menu, sections) ->
   menu.sections []
@@ -117,7 +68,7 @@ flashSubtitleError = (err, e, originalSubtitle = "") ->
 
   window.setTimeout(
     => changeSubtitleGivenEvent originalSubtitle, e
-    TIMEOUT_SUBTITLE_NOTIFICATION
+    lookAndFeel.TIMEOUT_SUBTITLE_NOTIFICATION
   )
 
 class ReadyEmitter
@@ -179,7 +130,7 @@ class ToWatch extends Menu
 
             window.setTimeout(
               () => changeSubtitleGivenEvent data.originalSubtitle, e
-              TIMEOUT_SUBTITLE_NOTIFICATION
+              lookAndFeel.TIMEOUT_SUBTITLE_NOTIFICATION
             )
       else
         # We need to check
@@ -196,7 +147,7 @@ class ToWatch extends Menu
 
             window.setTimeout(
               () => changeSubtitleGivenEvent data.originalSubtitle, e
-              TIMEOUT_SUBTITLE_NOTIFICATION
+              lookAndFeel.TIMEOUT_SUBTITLE_NOTIFICATION
             )
 
             trakttv.fetchShowProgress data.showID,
@@ -235,7 +186,7 @@ class ToWatch extends Menu
         (err, episodeInfo) =>
           return flashSubtitleError(err, e, data.originalSubtitle) if err
 
-          detailedItemCard = createDefaultCard
+          detailedItemCard = cards.createDefaultCard
             title: data.showTitle
             subtitle: "Season #{data.seasonNumber} Ep. #{data.episodeNumber}"
             body: "Title: #{episodeInfo.title}\n\
@@ -342,7 +293,7 @@ class Upcoming extends Menu
         (err, episodeInfo) =>
           return flashSubtitleError(err, e, data.originalSubtitle) if err
 
-          detailedItemCard = createDefaultCard
+          detailedItemCard = cards.createDefaultCard
             title: data.showTitle
             subtitle: "Season #{data.seasonNumber} Ep. #{data.episodeNumber}"
             body: "Airs on #{moment(data.airs_at).format(@userDateFormat)}\n\
@@ -405,7 +356,7 @@ class Episodes extends Menu
     )
     @menu.on 'select', (e) ->
       data = e.item.data
-      detailedItemCard = createDefaultCard(
+      detailedItemCard = cards.createDefaultCard(
         title: showTitle
         subtitle: "Season #{data.seasonNumber} Ep. #{data.episodeNumber}"
         body: "Title: #{data.episodeTitle}\n\
