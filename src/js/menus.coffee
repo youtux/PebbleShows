@@ -324,83 +324,16 @@ menus.Upcoming = Upcoming
 class MyShows
   constructor: () ->
     @menu = createDefaultMenu()
+    @menu.on 'select', (e) =>
+      data = e.item.data
 
-    @initHandlers()
+      show = i for i in @shows when i.show.ids.trakt == data.showID
+
+      seasonsMenu = createSeasonsMenu(data.showID, data.showTitle, show.seasons)
+      seasonsMenu.show()
 
   show: -> @menu.show()
 
-  initHandlers: ->
-    @menu.on 'select', (e) =>
-      element = e.item
-      data = e.item.data
-
-      showTitle = e.item.data.showTitle
-
-      item = i for i in @shows when i.show.ids.trakt == data.showID
-      seasonsMenu = createDefaultMenu
-        sections: [{
-          items:
-            {
-              title: "Season #{season.number}"
-              data:
-                showID: data.showID
-                seasonNumber: season.number
-            } for season in item.seasons
-        }]
-
-      seasonsMenu.show()
-
-      seasonsMenu.on 'select', (seasonMenuEvent) ->
-        element = seasonMenuEvent.item
-        data = seasonMenuEvent.item.data
-
-        displaySubtitle = (text) =>
-          element.subtitle = text
-          seasonsMenu.item seasonMenuEvent.sectionIndex, seasonMenuEvent.itemIndex, element
-
-        originalSubtitle = element.subtitle
-        displaySubtitle "Loading..."
-
-        season = s for s in item.seasons when s.number == data.seasonNumber
-
-        async.map(
-          season.episodes,
-          (ep, cb) ->
-            trakttv.getEpisodeData data.showID, data.seasonNumber, ep.number,
-              (err, episode) ->
-                # TODO: maybe we can print something else?
-                if err?
-                  episode = {}
-                cb(null, episode)
-          (err, episodes) ->
-            episodesMenu = createDefaultMenu(
-              sections: [{
-                items:
-                  {
-                    title: episode.title
-                    subtitle: "Season #{episode.season} Ep. #{episode.number}"
-                    data:
-                      episodeTitle: episode.title
-                      overview: episode.overview
-                      seasonNumber: episode.season
-                      episodeNumber: episode.number
-                  } for episode in episodes
-              }]
-            )
-
-            episodesMenu.show()
-            displaySubtitle originalSubtitle
-
-            episodesMenu.on 'select', (e) ->
-              data = e.item.data
-              detailedItemCard = createDefaultCard
-                title: showTitle
-                subtitle: "Season #{data.seasonNumber} Ep. #{data.episodeNumber}"
-                body: "Title: #{data.episodeTitle}\n\
-                       Overview: #{data.overview}"
-
-              detailedItemCard.show()
-          )
   update: (@shows) ->
     console.log "Updating MyShows"
 
@@ -417,6 +350,80 @@ class MyShows
     updateMenuSections @menu, sections
 
 menus.MyShows = MyShows
+
+createEpisodesMenu = (showTitle, episodes) ->
+  episodesMenu = createDefaultMenu(
+    sections: [{
+      items:
+        {
+          title: episode.title
+          subtitle: "Season #{episode.season} Ep. #{episode.number}"
+          data:
+            episodeTitle: episode.title
+            overview: episode.overview
+            seasonNumber: episode.season
+            episodeNumber: episode.number
+        } for episode in episodes
+    }]
+  )
+  episodesMenu.on 'select', (e) ->
+    data = e.item.data
+    detailedItemCard = createDefaultCard(
+      title: showTitle
+      subtitle: "Season #{data.seasonNumber} Ep. #{data.episodeNumber}"
+      body: "Title: #{data.episodeTitle}\n\
+             Overview: #{data.overview}"
+    )
+
+    detailedItemCard.show()
+
+  episodesMenu
+
+menus.createEpisodesMenu = createEpisodesMenu
+
+createSeasonsMenu = (showID, showTitle, seasons) ->
+  seasonsMenu = createDefaultMenu(
+    sections: [{
+      items:
+        {
+          title: "Season #{season.number}"
+          data:
+            seasonNumber: season.number
+        } for season in seasons
+    }]
+  )
+
+  seasonsMenu.on 'select', (e) ->
+    element = e.item
+    data = e.item.data
+
+    displaySubtitle = (text) =>
+      element.subtitle = text
+      seasonsMenu.item e.sectionIndex, e.itemIndex, element
+
+    originalSubtitle = element.subtitle
+    displaySubtitle "Loading..."
+
+    season = s for s in seasons when s.number == data.seasonNumber
+
+    async.map(
+      season.episodes,
+      (ep, cb) ->
+        trakttv.getEpisodeData showID, data.seasonNumber, ep.number,
+          (err, episode) ->
+            # TODO: maybe we can print something else?
+            if err?
+              episode = {}
+            cb(null, episode)
+      (err, episodes) ->
+        episodesMenu = createEpisodesMenu showTitle, episodes
+        episodesMenu.show()
+
+        displaySubtitle originalSubtitle
+    )
+  seasonsMenu
+
+menus.createSeasonsMenu = createSeasonsMenu
 
 class Main
   constructor: (opts)->
