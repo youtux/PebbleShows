@@ -32,7 +32,7 @@ menuDefaults =
     textColor: defaults.textColor
     highlightBackgroundColor: defaults.thirdColor #
     highlightTextColor: 'white'
-    fullscreen: true
+    fullscreen: false
   else
     backgroundColor: defaults.backgroundColor
     textColor: defaults.textColor
@@ -47,7 +47,7 @@ cardDefaults =
     titleColor: defaults.thirdColor
     subtitleColor: defaults.thirdColor
     bodyColor: defaults.textColor
-    fullscreen: true
+    fullscreen: false
     style: 'small'
     scrollable: true
   else
