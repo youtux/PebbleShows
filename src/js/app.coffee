@@ -171,16 +171,24 @@ checkLaunchEvent = ->
       launchCode = e.launchCode
       dispatchTimelineAction(launchCode)
 
+class TimeFormat
+  @get: -> (Settings.data 'TimeFormat') or '12'
+  @set: (format) ->
+    if format != '12' and format != '24'
+      console.log "setTimeFormat: invalid argument #{format}"
+      return
+    Settings.data TimeFormat: format
+
 toWatchMenu = new menus.ToWatch()
 toWatchMenu.update(Settings.data 'shows') if Settings.data 'shows'
 
 myShowsMenu = new menus.MyShows()
 myShowsMenu.update(Settings.data 'shows') if Settings.data 'shows'
 
-upcomingMenu = new menus.Upcoming()
+upcomingMenu = new menus.Upcoming(TimeFormat)
 upcomingMenu.update(Settings.data 'calendar') if Settings.data 'calendar'
 
-advancedMenu = new menus.Advanced initSettings, fetchData
+advancedMenu = new menus.Advanced initSettings, fetchData, TimeFormat
 
 mainMenu = new menus.Main
   toWatchMenu: toWatchMenu

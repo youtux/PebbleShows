@@ -251,15 +251,21 @@ class ToWatch
 
 menus.ToWatch = ToWatch
 
-# TODO: Fetch user preferences, and show correct date/hour
 class Upcoming
-  constructor: (@userDateFormat = "D MMMM YYYY") ->
+  constructor: (@TimeFormatAccessor, @userDateFormat = "D MMMM YYYY") ->
     @menu = createDefaultMenu()
 
     @initHandlers()
     # @reload()
 
-  update: (calendar) ->
+  getUserTimeFormat: () ->
+    if @TimeFormatAccessor.get() == '24'
+      'HH:mm'
+    else
+      'h:mm a'
+
+  update: (@calendar = @calendar) ->
+    return unless @calendar?
     console.log "Updating Upcoming"
     sections =
       {
@@ -267,7 +273,7 @@ class Upcoming
         items:
           {
             title: item.show.title
-            subtitle: "S#{item.episode.season}E#{item.episode.number} | #{moment(item.airs_at).format('HH:mm')}"
+            subtitle: "S#{item.episode.season}E#{item.episode.number} | #{moment(item.airs_at).format(@getUserTimeFormat())}"
             data:
               showID: item.show.ids.trakt
               showTitle: item.show.title
@@ -276,13 +282,14 @@ class Upcoming
               airs_at: item.airs_at
 
           } for item in items when moment(item.airs_at).isAfter(@fromDate)
-      } for date, items of calendar
+      } for date, items of @calendar
 
 
     @menu.section(idx, s) for s, idx in sections
     # sections.forEach (s, idx) => @menu.section(idx, s)
 
   show: ->
+    @update()
     @menu.show()
 
   initHandlers: ->
@@ -296,7 +303,7 @@ class Upcoming
             title: data.showTitle
             subtitle: "Season #{data.seasonNumber} Ep. #{data.episodeNumber}"
             body: "Airs on #{moment(data.airs_at).format(@userDateFormat)}\n\
-                   at #{moment(data.airs_at).format('HH:mm')}\n\
+                   at #{moment(data.airs_at).format(@getUserTimeFormat())}\n\
                    Title: #{episodeInfo.title}\n\
                    Overview: #{episodeInfo.overview}"
 
@@ -442,30 +449,51 @@ class Main
 menus.Main = Main
 
 class Advanced
-  constructor: (@initSettings, @fetchData) ->
+  constructor: (@initSettings, @fetchData, @TimeFormatAccessor) ->
     @menu = createDefaultMenu
       sections: [
         items: [
           {
+            title: "Time Format"
+            subtitle: "#{@TimeFormatAccessor.get()}h"
+            data:
+              id: 'clockStyle'
+          }, {
             title: 'Reload shows'
-            action: @fetchData
+            data:
+              id: 'reloadShows'
           }, {
             title: 'Reset local data'
-            action: =>
-              localStorage.clear()
-              @initSettings()
-
-              console.log "Local storage cleared"
+            data:
+              id: 'resetLocalData'
           }, {
             title: "Version: #{Appinfo.versionLabel}"
-            action: ->
           }
         ]
       ]
     @initHandlers()
 
   initHandlers: ->
-    @menu.on 'select', (e) => e.item.action()
+    @menu.on 'select', (e) =>
+      element = e.item
+      data = e.item.data
+
+      switch data.id
+        when 'reloadShows'
+          @fetchData()
+        when 'resetLocalData'
+          localStorage.clear()
+          @initSettings()
+
+          console.log "Local storage cleared"
+        when 'clockStyle'
+          if @TimeFormatAccessor.get() == '24'
+            @TimeFormatAccessor.set('12')
+            element.subtitle = "12h"
+          else
+            @TimeFormatAccessor.set('24')
+            element.subtitle = "24h"
+          @menu.item e.sectionIndex, e.itemIndex, element
 
   show: ->
     @menu.show()
