@@ -62,11 +62,18 @@ trakttv.request = (opt, callback) ->
     (response, status, req) =>
       callback null, response
     (response, status, req) ->
+      console.log "Request failure (#{status} #{opt.method} #{opt.url})"
       if status == 401
         console.log "Server says that authorization is required"
         events.emit 'authorizationRequired', message: 'Authorization required from server'
-      console.log "Request failure (#{status} #{opt.method} #{opt.url})"
-      callback status
+        return
+
+      if status == null
+        err = new Error("Connection not available.")
+      else
+        err = new Error("Communication error (#{statys}).")
+
+      callback err
 
 
 trakttv.getWatched = (callback) ->
@@ -81,7 +88,6 @@ trakttv.fetchToWatchList = (callback) ->
     watched: trakttv.getWatched
     watchlist: trakttv.getWatchList
     (err, result) =>
-      # TODO: check if this works without internet connection
       return callback(err) if err?
 
       shows = uniqBy(

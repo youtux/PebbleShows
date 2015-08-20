@@ -209,5 +209,6 @@ logInfo()
 initSettings()
 setupEvents toWatchMenu, myShowsMenu, upcomingMenu, signInWindow
 checkLaunchEvent()
-fetchData(->)
+fetchData (err) ->
+  return cards.flashError(err) if err
 

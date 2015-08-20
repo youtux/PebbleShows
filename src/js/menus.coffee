@@ -14,6 +14,8 @@ ICON_MENU_CALENDAR = 'images/icon_calendar.png'
 ICON_MENU_EYE = 'images/icon_eye.png'
 ICON_MENU_HOME = 'images/icon_home.png'
 
+TIMEOUT_SUBTITLE_NOTIFICATION = 2000
+
 colorsAvailable = Pebble.getActiveWatchInfo?().platform == "basalt"
 
 defaults =
@@ -110,6 +112,14 @@ compareByFunction = (keyFunction) ->
     0 if keyFunction(a) == keyFunction(b)
     1 if keyFunction(a) > keyFunction(b)
 
+flashSubtitleError = (err, e, originalSubtitle = "") ->
+  changeSubtitleGivenEvent "Failed (#{err.message})", e
+
+  window.setTimeout(
+    => changeSubtitleGivenEvent originalSubtitle, e
+    TIMEOUT_SUBTITLE_NOTIFICATION
+  )
+
 class ReadyEmitter
   constructor: () ->
     @_emitter = new Emitter()
@@ -160,15 +170,8 @@ class ToWatch extends Menu
 
         trakttv.uncheckEpisode data.showID, data.seasonNumber, data.episodeNumber,
           (err) =>
-            if err?
-              # Rollback
-              changeSubtitleGivenEvent "Failed", e
+            return flashSubtitleError(err, e, data.originalSubtitle) if err
 
-              window.setTimeout(
-                () => changeSubtitleGivenEvent data.originalSubtitle, e
-                2000
-              )
-              return
             element.data.completed = false
             element.icon = @icons.unchecked
             element.subtitle = "Unchecked!"
@@ -176,7 +179,7 @@ class ToWatch extends Menu
 
             window.setTimeout(
               () => changeSubtitleGivenEvent data.originalSubtitle, e
-              2000
+              TIMEOUT_SUBTITLE_NOTIFICATION
             )
       else
         # We need to check
@@ -184,29 +187,22 @@ class ToWatch extends Menu
 
         trakttv.checkEpisode data.showID, data.seasonNumber, data.episodeNumber,
           (err) =>
-            if err?
-              # Rollback
-              changeSubtitleGivenEvent "Failed", e
+            return flashSubtitleError(err, e, data.originalSubtitle) if err
 
-              window.setTimeout(
-                () => changeSubtitleGivenEvent data.originalSubtitle, e
-                2000
-              )
-              return
             element.data.completed = true
             element.icon = @icons.checked
-            element.subtitle = "Checked!"
-            @menu.item e.sectionIndex, e.itemIndex, element
+
+            changeSubtitleGivenEvent "Checked!", e
 
             window.setTimeout(
               () => changeSubtitleGivenEvent data.originalSubtitle, e
-              2000
+              TIMEOUT_SUBTITLE_NOTIFICATION
             )
 
             trakttv.fetchShowProgress data.showID,
               (err, show) =>
-                # TODO: display notification
-                return if err?
+                return cards.flashError(err) if err
+
                 if not isNextEpisodeForItemAired(show)
                   return
 
@@ -231,8 +227,14 @@ class ToWatch extends Menu
     @menu.on 'select', (e) =>
       element = e.item
       data = element.data
+      originalSubtitle = element.subtitle
+
+      changeSubtitleGivenEvent "Loading...", e
+
       trakttv.getEpisodeData data.showID, data.seasonNumber, data.episodeNumber,
         (err, episodeInfo) =>
+          return flashSubtitleError(err, e, data.originalSubtitle) if err
+
           detailedItemCard = createDefaultCard
             title: data.showTitle
             subtitle: "Season #{data.seasonNumber} Ep. #{data.episodeNumber}"
@@ -240,6 +242,7 @@ class ToWatch extends Menu
                    Overview: #{episodeInfo.overview}"
 
           detailedItemCard.show()
+          changeSubtitleGivenEvent originalSubtitle, e
 
 
   _createItem: (showID, showTitle, episodeTitle, seasonNumber, episodeNumber, completed) ->
@@ -329,11 +332,16 @@ class Upcoming extends Menu
 
   initHandlers: ->
     @menu.on 'select', (e) =>
+      element = e.item
       data = e.item.data
+      originalSubtitle = element.subtitle
+
+      changeSubtitleGivenEvent "Loading...", e
 
       trakttv.getEpisodeData data.showID, data.seasonNumber, data.episodeNumber,
         (err, episodeInfo) =>
-          #TODO: handle error
+          return flashSubtitleError(err, e, data.originalSubtitle) if err
+
           detailedItemCard = createDefaultCard
             title: data.showTitle
             subtitle: "Season #{data.seasonNumber} Ep. #{data.episodeNumber}"
@@ -343,6 +351,7 @@ class Upcoming extends Menu
                    Overview: #{episodeInfo.overview}"
 
           detailedItemCard.show()
+          changeSubtitleGivenEvent originalSubtitle, e
 
 class MyShows extends Menu
   constructor: () ->
@@ -432,14 +441,11 @@ class Seasons extends Menu
 
       async.map(
         season.episodes,
-        (ep, cb) =>
-          trakttv.getEpisodeData showID, data.seasonNumber, ep.number,
-            (err, episode) =>
-              # TODO: maybe we can print something else?
-              if err?
-                episode = {}
-              cb(null, episode)
+        (ep, callback) =>
+          trakttv.getEpisodeData showID, data.seasonNumber, ep.number, callback
         (err, episodes) =>
+          return flashSubtitleError(err, e, data.originalSubtitle) if err
+
           episodesMenu = new Episodes showTitle, episodes
           episodesMenu.whenReady (err) =>
             episodesMenu.show()
