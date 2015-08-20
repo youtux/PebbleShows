@@ -327,7 +327,7 @@ class MyShows
       data = e.item.data
       showTitle = e.item.data.showTitle
 
-      item = i for i in @show_list when i.show.ids.trakt == data.showID
+      item = i for i in @shows when i.show.ids.trakt == data.showID
       seasonsMenu = createDefaultMenu
         sections: [{
           items:
@@ -382,12 +382,8 @@ class MyShows
 
               detailedItemCard.show()
           )
-  update: (shows) ->
+  update: (@shows) ->
     console.log "Updating MyShows"
-    sortedShows = shows[..]
-    sortedShows.sort compareByFunction (e) -> moment(e.last_watched_at)
-
-    @show_list = sortedShows
 
     sections = [
       items:
@@ -396,7 +392,7 @@ class MyShows
           data:
             showID: item.show.ids.trakt
             showTitle: item.show.title
-        } for item in @show_list
+        } for item in @shows
     ]
 
     updateMenuSections @menu, sections
