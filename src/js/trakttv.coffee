@@ -69,7 +69,7 @@ trakttv.request = (opt, callback) ->
       callback status
 
 
-trakttv.getShows = (callback) ->
+trakttv.getWatched = (callback) ->
   trakttv.request '/sync/watched/shows', callback
 
 trakttv.getWatchList = (callback) ->
@@ -78,7 +78,7 @@ trakttv.getWatchList = (callback) ->
 
 trakttv.fetchToWatchList = (callback) ->
   async.parallel(
-    watched: trakttv.getShows
+    watched: trakttv.getWatched
     watchlist: trakttv.getWatchList
     (err, result) =>
       # TODO: check if this works without internet connection
