@@ -4,6 +4,8 @@ Appinfo = require('appinfo')
 async = require('async')
 myutil = require('myutil')
 
+Emitter = require('emitter')
+
 trakttv = require('trakttv')
 
 menus = {}
@@ -106,16 +108,41 @@ compareByFunction = (keyFunction) ->
     0 if keyFunction(a) == keyFunction(b)
     1 if keyFunction(a) > keyFunction(b)
 
-class ToWatch
+class ReadyEmitter
+  constructor: () ->
+    @_emitter = new Emitter()
+    @_ready = false
+
+  register: (callback) =>
+    return callback(null) if @_ready
+    callbackWrapper = () =>
+      @_emitter.off 'ready', callbackWrapper
+      callback(null)
+    @_emitter.on 'ready', callbackWrapper
+
+  notify: () =>
+    @_ready = true
+    @_emitter.emit 'ready', {}
+
+class Menu
+  constructor: () ->
+    @readyEmitter = new ReadyEmitter()
+    @menu = null
+
+  whenReady: (callback) -> @readyEmitter.register(callback)
+
+  show: -> @menu.show()
+
+
+class ToWatch extends Menu
   constructor: ->
+    super
     @icons =
       checked: ICON_MENU_CHECKED
       unchecked: ICON_MENU_UNCHECKED
     @menu = createDefaultMenu()
 
     @initHandlers()
-
-  show: -> @menu.show()
 
   isEpisodeListedInSection: (episodeNumber, section) ->
     episodeNumber in (item.data.episodeNumber for item in section.items)
@@ -260,14 +287,16 @@ class ToWatch
 
     updateMenuSections @menu, sections
 
+    @readyEmitter.notify()
+
 menus.ToWatch = ToWatch
 
-class Upcoming
+class Upcoming extends Menu
   constructor: (@TimeFormatAccessor, @userDateFormat = "D MMMM YYYY") ->
+    super
     @menu = createDefaultMenu()
 
     @initHandlers()
-    # @reload()
 
   getUserTimeFormat: () ->
     if @TimeFormatAccessor.get() == '24'
@@ -295,8 +324,8 @@ class Upcoming
           } for item in items when moment(item.airs_at).isAfter(@fromDate)
       } for date, items of @calendar
 
-
     updateMenuSections @menu, sections
+    @readyEmitter.notify()
 
   show: ->
     @update()
@@ -321,8 +350,9 @@ class Upcoming
 
 menus.Upcoming = Upcoming
 
-class MyShows
+class MyShows extends Menu
   constructor: () ->
+    super
     @menu = createDefaultMenu()
     @menu.on 'select', (e) =>
       data = e.item.data
@@ -331,8 +361,6 @@ class MyShows
 
       seasonsMenu = createSeasonsMenu(data.showID, data.showTitle, show.seasons)
       seasonsMenu.show()
-
-  show: -> @menu.show()
 
   update: (@shows) ->
     console.log "Updating MyShows"
@@ -348,6 +376,7 @@ class MyShows
     ]
 
     updateMenuSections @menu, sections
+    @readyEmitter.notify()
 
 menus.MyShows = MyShows
 
@@ -425,56 +454,76 @@ createSeasonsMenu = (showID, showTitle, seasons) ->
 
 menus.createSeasonsMenu = createSeasonsMenu
 
-class Main
-  constructor: (opts)->
-    @toWatchMenu = opts.toWatchMenu
-    @upcomingMenu = opts.upcomingMenu
-    @myShowsMenu = opts.myShowsMenu
-    @advancedMenu = opts.advancedMenu
-    @menu = createDefaultMenu
+class Main extends Menu
+  constructor: (TimeFormatAccessor, initSettings, fetchData) ->
+    super
+    @toWatchMenu = new menus.ToWatch()
+    @myShowsMenu = new menus.MyShows()
+    @upcomingMenu = new menus.Upcoming TimeFormatAccessor
+    @advancedMenu = new menus.Advanced initSettings, fetchData, TimeFormatAccessor
+
+    @menu = createDefaultMenu(
       sections: [
         items: [{
           title: 'To watch'
           icon: ICON_MENU_EYE
-          id: 'toWatch'
+          data:
+            id: 'toWatch'
         }, {
           title: 'Upcoming'
           icon: ICON_MENU_CALENDAR
-          id: 'upcoming'
+          data:
+            id: 'upcoming'
         }, {
           title: 'My shows'
           icon: ICON_MENU_HOME
-          id: 'myShows'
+          data:
+            id: 'myShows'
         }, {
           title: 'Advanced'
-          id: 'advanced'
+          data:
+            id: 'advanced'
         }]
       ]
-    @initHandlers()
+    )
 
-  initHandlers: ->
     @menu.on 'select', (e) =>
-      switch e.item.id
-        when 'toWatch', 'upcoming', 'myShows'
-          switch e.item.id
-            when 'toWatch'
-              # trakttv.fetchToWatchList()
-              @toWatchMenu.show()
-            when 'upcoming'
-              @upcomingMenu.show()
-            when 'myShows'
-              @myShowsMenu.show()
+      element = e.item
+      id = e.item.data.id
+
+      displaySubtitle = (text) =>
+        element.subtitle = text
+        @menu.item e.sectionIndex, e.itemIndex, element
+
+      switch id
+        when 'toWatch'
+          displaySubtitle "Loading"
+          @toWatchMenu.whenReady (err) =>
+            console.log "towatchMenu is ready!"
+            @toWatchMenu.show()
+            displaySubtitle ""
+
+        when 'upcoming'
+          displaySubtitle "Loading"
+          @upcomingMenu.whenReady (err) =>
+            @upcomingMenu.show()
+            displaySubtitle ""
+        when 'myShows'
+          displaySubtitle "Loading"
+          @myShowsMenu.whenReady (err) =>
+            @myShowsMenu.show()
+            displaySubtitle ""
 
         when 'advanced'
           @advancedMenu.show()
 
-  show: ->
-    @menu.show()
+    @readyEmitter.notify()
 
 menus.Main = Main
 
-class Advanced
+class Advanced extends Menu
   constructor: (@initSettings, @fetchData, @TimeFormatAccessor) ->
+    super
     @menu = createDefaultMenu
       sections: [
         items: [
@@ -497,6 +546,7 @@ class Advanced
         ]
       ]
     @initHandlers()
+    @readyEmitter.notify()
 
   initHandlers: ->
     @menu.on 'select', (e) =>
@@ -505,7 +555,7 @@ class Advanced
 
       switch data.id
         when 'reloadShows'
-          @fetchData()
+          @fetchData(->)
         when 'resetLocalData'
           localStorage.clear()
           @initSettings()
@@ -519,9 +569,6 @@ class Advanced
             @TimeFormatAccessor.set('24')
             element.subtitle = "24h"
           @menu.item e.sectionIndex, e.itemIndex, element
-
-  show: ->
-    @menu.show()
 
 menus.Advanced = Advanced
 

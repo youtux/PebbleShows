@@ -81,6 +81,7 @@ trakttv.fetchToWatchList = (callback) ->
     watched: trakttv.getShows
     watchlist: trakttv.getWatchList
     (err, result) =>
+      # TODO: check if this works without internet connection
       return callback(err) if err?
 
       shows = uniqBy(

@@ -6,17 +6,13 @@ Settings = require('settings')
 Timeline = require('timeline')
 Appinfo = require('appinfo')
 
+async = require('async')
+
 trakttv = require('trakttv')
 menus = require('menus')
 cards = require('cards')
 
-
 subscriptionsAlreadyUpdated = false
-
-signInWindow = cards.noEscape
-  title: 'Sign-in required'
-  body: 'Open the Pebble App and configure Pebble Shows.'
-
 
 logInfo = ->
   accessToken = Settings.option 'accessToken'
@@ -38,9 +34,9 @@ initSettings = ->
   }, (e) ->
     console.log "Returned from settings"
     signInWindow.hide()
-    fetchData()
+    fetchData(->)
 
-setupEvents = ->
+setupEvents = (toWatchMenu, myShowsMenu, upcomingMenu, signInWindow) ->
   trakttv.on 'authorizationRequired', (event) ->
     message = event.message
     signInWindow.show()
@@ -57,9 +53,21 @@ setupEvents = ->
     Settings.data calendar: calendar
     upcomingMenu.update(calendar)
 
-fetchData = ->
-  trakttv.getCalendar(moment().subtract(1, 'day').format('YYYY-MM-DD'), 7, ->)
-  trakttv.fetchToWatchList(->)
+fetchData = (callback) ->
+  async.parallel(
+    [
+      (getCalendarCallback) ->
+        trakttv.getCalendar(
+          moment().subtract(1, 'day').format('YYYY-MM-DD'),
+          7,
+          getCalendarCallback
+        )
+      trakttv.fetchToWatchList
+    ],
+    (err, result) ->
+      callback err, null
+  )
+
 
 updateSubscriptions = (shows) ->
   if subscriptionsAlreadyUpdated
@@ -179,28 +187,27 @@ class TimeFormat
       return
     Settings.data TimeFormat: format
 
-toWatchMenu = new menus.ToWatch()
-toWatchMenu.update(Settings.data 'shows') if Settings.data 'shows'
+signInWindow = cards.noEscape
+  title: 'Sign-in required'
+  body: 'Open the Pebble App and configure Pebble Shows.'
 
-myShowsMenu = new menus.MyShows()
-myShowsMenu.update(Settings.data 'shows') if Settings.data 'shows'
+mainMenu = new menus.Main TimeFormat, initSettings, fetchData
+toWatchMenu = mainMenu.toWatchMenu
+upcomingMenu = mainMenu.upcomingMenu
+myShowsMenu = mainMenu.myShowsMenu
 
-upcomingMenu = new menus.Upcoming(TimeFormat)
-upcomingMenu.update(Settings.data 'calendar') if Settings.data 'calendar'
+if shows = Settings.data 'shows'
+  toWatchMenu.update shows
+  myShowsMenu.update myShowsMenu
 
-advancedMenu = new menus.Advanced initSettings, fetchData, TimeFormat
-
-mainMenu = new menus.Main
-  toWatchMenu: toWatchMenu
-  myShowsMenu: myShowsMenu
-  upcomingMenu: upcomingMenu
-  advancedMenu: advancedMenu
+if calendar = Settings.data 'calendar'
+  upcomingMenu.update calendar
 
 mainMenu.show()
 
 logInfo()
 initSettings()
-setupEvents()
+setupEvents toWatchMenu, myShowsMenu, upcomingMenu, signInWindow
 checkLaunchEvent()
-fetchData()
+fetchData(->)
 
