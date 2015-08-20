@@ -76,6 +76,10 @@ createDefaultCard = (cardDef) ->
   options = myutil.shadow(cardDefaults, cardDef || {})
   new UI.Card options
 
+updateMenuSections = (menu, sections) ->
+  menu.sections []
+  menu.sections sections
+
 isNextEpisodeForItemAired = (item) ->
   return false unless item.next_episode?
   if item.next_episode.season > item.seasons.length
@@ -247,7 +251,7 @@ class ToWatch
         ]
       ]
 
-    @menu.section(idx, s) for s, idx in sections
+    updateMenuSections @menu, sections
 
 menus.ToWatch = ToWatch
 
@@ -285,8 +289,7 @@ class Upcoming
       } for date, items of @calendar
 
 
-    @menu.section(idx, s) for s, idx in sections
-    # sections.forEach (s, idx) => @menu.section(idx, s)
+    updateMenuSections @menu, sections
 
   show: ->
     @update()
@@ -366,7 +369,7 @@ class MyShows
                     episodeNumber: episode.number
                 } for episode in episodes
             }]
-            episodesMenu.section(idx, s) for s, idx in episodesMenuSections
+            updateMenuSections episodeMenu, episodesMenuSections
 
             episodesMenu.on 'select', (e) ->
               data = e.item.data
@@ -396,7 +399,7 @@ class MyShows
         } for item in @show_list
     ]
 
-    @menu.section(idx, s) for s, idx in sections
+    updateMenuSections @menu, sections
 
 menus.MyShows = MyShows
 
