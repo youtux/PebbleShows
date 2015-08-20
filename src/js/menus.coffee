@@ -117,6 +117,9 @@ class ToWatch
 
   show: -> @menu.show()
 
+  isEpisodeListedInSection: (episodeNumber, section) ->
+    episodeNumber in (item.data.episodeNumber for item in section.items)
+
   initHandlers: ->
     @menu.on 'longSelect', (e) =>
       element = e.item
@@ -175,23 +178,25 @@ class ToWatch
               2000
             )
 
-            if data.isNextEpisodeListed
-              return
             trakttv.fetchShowProgress data.showID,
               (err, show) =>
                 # TODO: display notification
                 return if err?
                 if not isNextEpisodeForItemAired(show)
                   return
-                data.isNextEpisodeListed = true
+
+                nextEpisode = show.next_episode
+                thisSection = @menu.section e.sectionIndex
+
+                if @isEpisodeListedInSection nextEpisode.number, thisSection
+                  return
 
                 newItem = @_createItem(
                   data.showID
-                  data.shotTItle
-                  show.next_episode.title
-                  show.next_episode.season
-                  show.next_episode.number
-                  false
+                  data.showTitle
+                  nextEpisode.title
+                  nextEpisode.season
+                  nextEpisode.number
                   false
                 )
 
@@ -212,7 +217,7 @@ class ToWatch
           detailedItemCard.show()
 
 
-  _createItem: (showID, showTitle, episodeTitle, seasonNumber, episodeNumber, isNextEpisodeListed, completed) ->
+  _createItem: (showID, showTitle, episodeTitle, seasonNumber, episodeNumber, completed) ->
     subtitle = "Season #{seasonNumber} Ep. #{episodeNumber}"
     return {
       title: episodeTitle
@@ -225,7 +230,6 @@ class ToWatch
         episodeNumber: episodeNumber
         seasonNumber: seasonNumber
         completed: completed
-        isNextEpisodeListed: isNextEpisodeListed # TODO: delete me
     }
 
 
@@ -241,7 +245,6 @@ class ToWatch
             item.next_episode.title
             item.next_episode.season
             item.next_episode.number
-            false
             false                     # completed
           )
         ]
