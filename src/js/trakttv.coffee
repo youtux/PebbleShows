@@ -8,6 +8,23 @@ appinfo = require('appinfo')
 
 events = new Emitter()
 
+merge = (objects...) ->
+  res = {}
+  for obj in objects
+    for key, value of obj
+       res[key] = value
+  res
+
+uniqBy = (arr, key) ->
+    seen = {}
+    arr.filter (item)->
+      k = key(item)
+      if seen.hasOwnProperty(k)
+        false
+      else
+        seen[k] = true
+        true
+
 trakttv = {}
 
 trakttv.BASE_URL = 'https://api-v2launch.trakt.tv'
@@ -55,33 +72,45 @@ trakttv.request = (opt, callback) ->
 trakttv.getShows = (callback) ->
   trakttv.request '/sync/watched/shows', callback
 
+trakttv.getWatchList = (callback) ->
+  trakttv.request '/sync/watchlist/shows', callback
+
 
 trakttv.fetchToWatchList = (callback) ->
-  trakttv.getShows (err, shows) ->
-    return callback(err) if err?
+  async.parallel(
+    watched: trakttv.getShows
+    watchlist: trakttv.getWatchList
+    (err, result) =>
+      return callback(err) if err?
 
-    async.each(
-      shows,
-      (item, doneItem) ->
-        showID = item.show.ids.trakt
-        trakttv.fetchShowProgress showID,
-          (err, showProgress) ->
-            return doneItem() if err?
+      shows = uniqBy(
+        Array::concat(result.watchlist, result.watched)
+        (elem) -> elem.show.ids.trakt
+      )
 
-            item = i for i in shows when i.show.ids.trakt == showID
+      async.each(
+        shows,
+        (item, doneItem) ->
+          showID = item.show.ids.trakt
+          trakttv.fetchShowProgress showID,
+            (err, showProgress) ->
+              return doneItem() if err?
 
-            item.next_episode = showProgress.next_episode
-            item.seasons = showProgress.seasons
+              item = i for i in shows when i.show.ids.trakt == showID
 
-            events.emit 'update', 'show', show: item
+              item.next_episode = showProgress.next_episode
+              item.seasons = showProgress.seasons
 
-            doneItem()
-          (status) ->
-            doneItem()
-      (err) ->
-        events.emit 'update', 'shows', shows: shows
-        callback err, shows
-    )
+              events.emit 'update', 'show', show: item
+
+              doneItem()
+            (status) ->
+              doneItem()
+        (err) ->
+          events.emit 'update', 'shows', shows: shows
+          callback err, shows
+      )
+  )
 
 trakttv.getCalendar = (fromDate, daysWindow, callback) ->
   trakttv.request "/calendars/shows/#{fromDate}/#{daysWindow}",
