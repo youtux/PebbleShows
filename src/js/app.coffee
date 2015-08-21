@@ -108,20 +108,26 @@ updateSubscriptions = (shows) ->
 
 
 dispatchTimelineAction = (launchCode) ->
-  getLaunchData = (launchCode, cb) ->
+  getLaunchData = (launchCode, callback) ->
     console.log "getLaunchData url: #{config.BASE_SERVER_URL}/api/getLaunchData/#{launchCode}"
     ajax
       url: "#{config.BASE_SERVER_URL}/api/getLaunchData/#{launchCode}"
       type: 'json'
       (data, status, request) ->
         console.log("GOT DATA: #{JSON.stringify data}")
-        cb(null, data)
+        callback null, data
       (err, status, request) ->
         console.log("GOT error: #{JSON.stringify err}")
-        cb(err, status, request)
+        if status == null
+          err = new Error("Connection not available.")
+        else
+          err = new Error("Communication error (#{status}).")
+        callback err
 
   getLaunchData(launchCode,
     (err, data) ->
+      return cards.flashError(err) if err
+
       action = data.action
       episodeID = data.episodeID
       if action == 'markAsSeen'
