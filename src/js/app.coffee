@@ -188,8 +188,8 @@ class TimeFormat
     Settings.data TimeFormat: format
 
 signInWindow = cards.noEscape
-  title: 'Sign-in required'
-  body: 'Open the Pebble App and configure Pebble Shows.'
+  title: 'Configuration required'
+  body: 'Open the Pebble App on your phone and configure Shows.'
 
 mainMenu = new menus.Main TimeFormat, fetchData
 toWatchMenu = mainMenu.toWatchMenu
