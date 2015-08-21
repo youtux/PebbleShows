@@ -16,9 +16,18 @@ uniqBy = (arr, key) ->
         seen[k] = true
         true
 
+groupBy = (arr, key) ->
+  grouped = {}
+  (grouped[key e] ?= []).push e for e in arr
+  grouped
+
+flatten = (arr) -> Array::concat(arr...)
+
 colorsAvailable = Pebble.getActiveWatchInfo?().platform == "basalt"
 
 module.exports =
   merge: merge
   uniqBy: uniqBy
+  groupBy: groupBy
+  flatten: flatten
   colorsAvailable: colorsAvailable

@@ -245,9 +245,11 @@ class ToWatch extends Menu
     @readyEmitter.notify()
 
 class Upcoming extends Menu
-  constructor: (@TimeFormatAccessor, @userDateFormat = "D MMMM YYYY") ->
-    super
+  constructor: (@TimeFormatAccessor, @userDateFormat = "D MMMM YYYY", @fromDate = null) ->
+    super()
     @menu = createDefaultMenu()
+    if @fromDate == null
+      @fromDate = moment()
 
     @initHandlers()
 
@@ -260,9 +262,13 @@ class Upcoming extends Menu
   update: (@calendar = @calendar) ->
     return unless @calendar?
     console.log "Updating Upcoming"
+
+    shows = misc.flatten (items for dummyDate, items of @calendar)
+    showsGrouped = misc.groupBy shows, (item) => moment(item.airs_at).format(@userDateFormat)
+
     sections =
       {
-        title: moment(date).format(@userDateFormat)
+        title: dateFormatted
         items:
           {
             title: item.show.title
@@ -275,7 +281,7 @@ class Upcoming extends Menu
               airs_at: item.airs_at
 
           } for item in items when moment(item.airs_at).isAfter(@fromDate)
-      } for date, items of @calendar
+      } for dateFormatted, items of showsGrouped
 
     updateMenuSections @menu, sections
     @readyEmitter.notify()
