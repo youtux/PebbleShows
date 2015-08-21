@@ -63,13 +63,16 @@ compareByFunction = (keyFunction) ->
     0 if keyFunction(a) == keyFunction(b)
     1 if keyFunction(a) > keyFunction(b)
 
-flashSubtitleError = (err, e, originalSubtitle = "") ->
-  changeSubtitleGivenEvent "Failed (#{err.message})", e
+flashSubtitle = (message, e, originalSubtitle = "") ->
+  changeSubtitleGivenEvent message, e
 
   window.setTimeout(
     => changeSubtitleGivenEvent originalSubtitle, e
     lookAndFeel.TIMEOUT_SUBTITLE_NOTIFICATION
   )
+
+flashSubtitleError = (err, e, originalSubtitle = "") ->
+  flashSubtitle "Failed (#{err.message})", e, originalSubtitle
 
 class ReadyEmitter
   constructor: () ->
@@ -406,12 +409,12 @@ class Seasons extends Menu
 
 
 class Main extends Menu
-  constructor: (TimeFormatAccessor, initSettings, fetchData) ->
+  constructor: (TimeFormatAccessor, fetchData) ->
     super
     @toWatchMenu = new ToWatch()
     @myShowsMenu = new MyShows()
     @upcomingMenu = new Upcoming TimeFormatAccessor
-    @advancedMenu = new Advanced initSettings, fetchData, TimeFormatAccessor
+    @advancedMenu = new Advanced fetchData, TimeFormatAccessor
 
     @menu = createDefaultMenu(
       sections: [
@@ -446,19 +449,21 @@ class Main extends Menu
         when 'toWatch'
           changeSubtitleGivenEvent "Loading...", e
           @toWatchMenu.whenReady (err) =>
-            console.log "towatchMenu is ready!"
+            return flashSubtitleError(err, e) if err?
             @toWatchMenu.show()
             changeSubtitleGivenEvent "", e
 
         when 'upcoming'
           changeSubtitleGivenEvent "Loading...", e
           @upcomingMenu.whenReady (err) =>
+            return flashSubtitleError(err, e) if err?
             @upcomingMenu.show()
             changeSubtitleGivenEvent "", e
 
         when 'myShows'
           changeSubtitleGivenEvent "Loading", e
           @myShowsMenu.whenReady (err) =>
+            return flashSubtitleError(err, e) if err?
             @myShowsMenu.show()
             changeSubtitleGivenEvent "", e
 
@@ -468,28 +473,38 @@ class Main extends Menu
     @readyEmitter.notify()
 
 class Advanced extends Menu
-  constructor: (@initSettings, @fetchData, @TimeFormatAccessor) ->
-    super
+  constructor: (@fetchData, @TimeFormatAccessor) ->
+    super()
     @menu = createDefaultMenu
       sections: [
-        items: [
-          {
-            title: "Time Format"
-            subtitle: "#{@TimeFormatAccessor.get()}h"
-            data:
-              id: 'clockStyle'
+        {
+          items: [
+            {
+              title: "Time Format"
+              subtitle: "#{@TimeFormatAccessor.get()}h"
+              data:
+                id: 'timeFormat'
+            }, {
+              title: 'Refresh shows'
+              data:
+                id: 'refresh'
+            }, {
+              title: 'Restore watchapp'
+              data:
+                id: 'restore'
+            }
+          ]
+        }, {
+          title: "About"
+          items: [{
+            title: "Version"
+            subtitle: "#{Appinfo.versionLabel}"
           }, {
-            title: 'Reload shows'
-            data:
-              id: 'reloadShows'
-          }, {
-            title: 'Reset local data'
-            data:
-              id: 'resetLocalData'
-          }, {
-            title: "Version: #{Appinfo.versionLabel}"
-          }
-        ]
+            title: "Author"
+            subtitle: "Alessio Bogon @youtux"
+          }]
+        }
+
       ]
     @initHandlers()
     @readyEmitter.notify()
@@ -499,22 +514,29 @@ class Advanced extends Menu
       element = e.item
       data = e.item.data
 
-      switch data.id
-        when 'reloadShows'
-          @fetchData(->)
-        when 'resetLocalData'
-          localStorage.clear()
-          @initSettings()
+      switch data?.id
+        when 'refresh'
+          changeSubtitleGivenEvent "Refreshing...", e
+          @fetchData (err) =>
+            return flashSubtitleError(err, e) if err
+            flashSubtitle "Done!", e
 
-          console.log "Local storage cleared"
-        when 'clockStyle'
+        when 'restore'
+          localStorage.clear()
+
+          cards.noEscape(
+            title: "One more step"
+            body: "The watchapp has been restored.\n\
+                   Please close and open it again."
+          ).show()
+
+        when 'timeFormat'
           if @TimeFormatAccessor.get() == '24'
-            @TimeFormatAccessor.set('12')
-            element.subtitle = "12h"
+            @TimeFormatAccessor.set '12'
+            changeSubtitleGivenEvent "12h", e
           else
-            @TimeFormatAccessor.set('24')
-            element.subtitle = "24h"
-          @menu.item e.sectionIndex, e.itemIndex, element
+            @TimeFormatAccessor.set '24'
+            changeSubtitleGivenEvent "24h", e
 
 module.exports =
   Main: Main

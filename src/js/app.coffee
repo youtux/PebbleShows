@@ -191,7 +191,7 @@ signInWindow = cards.noEscape
   title: 'Sign-in required'
   body: 'Open the Pebble App and configure Pebble Shows.'
 
-mainMenu = new menus.Main TimeFormat, initSettings, fetchData
+mainMenu = new menus.Main TimeFormat, fetchData
 toWatchMenu = mainMenu.toWatchMenu
 upcomingMenu = mainMenu.upcomingMenu
 myShowsMenu = mainMenu.myShowsMenu
