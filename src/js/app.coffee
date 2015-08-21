@@ -26,7 +26,8 @@ logInfo = ->
     (errorString) -> console.log errorString
   )
 
-initSettings = ->
+initSettings = () ->
+  # TODO: Check why when returning from settings all the calls are duplicated
   Settings.init()
   Settings.config {
     url: config.PEBBLE_CONFIG_URL
@@ -106,84 +107,85 @@ updateSubscriptions = (shows) ->
           )
   )
 
+getLaunchData = (launchCode, callback) ->
+  console.log "getLaunchData url: #{config.BASE_SERVER_URL}/api/getLaunchData/#{launchCode}"
+  ajax
+    url: "#{config.BASE_SERVER_URL}/api/getLaunchData/#{launchCode}"
+    type: 'json'
+    (data, status, request) ->
+      console.log("GOT DATA: #{JSON.stringify data}")
+      callback null, data
+    (err, status, request) ->
+      console.log("GOT error: #{JSON.stringify err}")
+      if status == null
+        err = new Error("Connection not available.")
+      else
+        err = new Error("Communication error (#{status}).")
+      callback err
 
 dispatchTimelineAction = (launchCode) ->
-  getLaunchData = (launchCode, callback) ->
-    console.log "getLaunchData url: #{config.BASE_SERVER_URL}/api/getLaunchData/#{launchCode}"
-    ajax
-      url: "#{config.BASE_SERVER_URL}/api/getLaunchData/#{launchCode}"
-      type: 'json'
-      (data, status, request) ->
-        console.log("GOT DATA: #{JSON.stringify data}")
-        callback null, data
-      (err, status, request) ->
-        console.log("GOT error: #{JSON.stringify err}")
-        if status == null
-          err = new Error("Connection not available.")
+  getLaunchData(launchCode, (err, data) =>
+    return cards.flashError(err) if err
+
+    action = data.action
+    episodeID = data.episodeID
+
+    if action == 'markAsSeen'
+      statusCard = cards.Notification.fromMessage(
+        "Please wait"          # text
+        "Marking episode..."   # title
+        true                   # noEscape
+      )
+      statusCard.show()
+
+      trakttv.markEpisode(episodeID, true, null, (err, result) =>
+        if err
+          cards.Error.fromError(err).show()
+          statusCard.hide()
+          return
+
+        cards.Notification.fromMessage(
+          "Show marked as seen."  # text
+          "Success!"              # title
+        ).show()
+
+        statusCard.hide()
+      )
+
+    else if action == 'checkIn'
+      statusCard = cards.Notification.fromMessage(
+        "Please wait"              # text
+        "Checking-in episode..."   # title
+        true                       # noEscape
+      )
+      statusCard.show()
+
+      trakttv.checkInEpisode(episodeID, (err, result) ->
+        if err
+          if err.status == 409
+            cards.Error.fromMessage(
+              "You are already watching the episode."
+              "Hmmm..."
+            ).show()
+          else
+            cards.Error.fromError(err).show()
         else
-          err = new Error("Communication error (#{status}).")
-        callback err
-
-  getLaunchData(launchCode,
-    (err, data) ->
-      return cards.flashError(err) if err
-
-      action = data.action
-      episodeID = data.episodeID
-      if action == 'markAsSeen'
-        statusCard = cards.noEscape
-          title: "Marking episode..."
-          body: "Please wait"
-        statusCard.show()
-
-        trakttv.markEpisode episodeID, true, null,
-          (err, result) ->
-            console.log("MarkAsSeen #{episodeID}. err: #{err}")
-            notification =
-              if err?
-                new UI.Card
-                  title: "Error"
-                  body: "Communication Error. Try again later"
-              else
-                new UI.Card
-                  title: "Success!"
-                  body: "Episode marked as seen."
-            notification.show()
-            statusCard.hide()
-
-      else if action == 'checkIn'
-        statusCard = cards.noEscape
-          title: "Checking-in episode..."
-          body: "Please wait"
-        statusCard.show()
-
-        trakttv.checkInEpisode episodeID,
-          (err, result) ->
-            console.log("CheckIn #{episodeID}. err: #{JSON.stringify err}, result: #{JSON.stringify result}")
-            notification =
-              if (err? and result != 409)
-                new UI.Card
-                  title: "Error"
-                  body: "Communication error. Try again later"
-              else if (err? and result == 409)
-                console.log "Creating already watching card"
-                new UI.Card
-                  title: "Hmmm..."
-                  body: "You are already watching the episode."
-              else
-                new UI.Card
-                  title: "Success!"
-                  body: "Episode check'd in. Enjoy it!"
-            notification.show()
-            statusCard.hide()
+          cards.Notification.fromMessage(
+            'Enjoy the show!'
+            'Success!'
+          ).show()
+        statusCard.hide()
+      )
     )
 
-checkLaunchEvent = ->
+checkLaunchReason = (normalAppLaunchCallback, timelineLaunchCallback)->
   Timeline.launch (e) ->
     if e.action
       console.log "Timeline launch! launchCode: #{launchCode}"
       launchCode = e.launchCode
-      dispatchTimelineAction(launchCode)
+      timelineLaunchCallback null, launchCode
+    else
+      normalAppLaunchCallback null
 
 class TimeFormat
   @get: -> (Settings.data 'TimeFormat') or '12'
@@ -193,28 +195,35 @@ class TimeFormat
       return
     Settings.data TimeFormat: format
 
-signInWindow = cards.noEscape
+normalAppLaunch = () ->
+  mainMenu = new menus.Main TimeFormat, fetchData
+  toWatchMenu = mainMenu.toWatchMenu
+  upcomingMenu = mainMenu.upcomingMenu
+  myShowsMenu = mainMenu.myShowsMenu
+
+  setupEvents toWatchMenu, myShowsMenu, upcomingMenu, signInWindow
+
+  if shows = Settings.data 'shows'
+    toWatchMenu.update shows
+    myShowsMenu.update myShowsMenu
+
+  if calendar = Settings.data 'calendar'
+    upcomingMenu.update calendar
+
+  mainMenu.show()
+
+  fetchData (err) ->
+    return cards.flashError(err) if err
+
+signInWindow = new cards.Error(
   title: 'Configuration required'
   body: 'Open the Pebble App on your phone and configure Shows.'
-
-mainMenu = new menus.Main TimeFormat, fetchData
-toWatchMenu = mainMenu.toWatchMenu
-upcomingMenu = mainMenu.upcomingMenu
-myShowsMenu = mainMenu.myShowsMenu
-
-if shows = Settings.data 'shows'
-  toWatchMenu.update shows
-  myShowsMenu.update myShowsMenu
-
-if calendar = Settings.data 'calendar'
-  upcomingMenu.update calendar
-
-mainMenu.show()
+  true # noEscape
+)
 
 logInfo()
 initSettings()
-setupEvents toWatchMenu, myShowsMenu, upcomingMenu, signInWindow
-checkLaunchEvent()
-fetchData (err) ->
-  return cards.flashError(err) if err
-
+checkLaunchReason(
+  normalAppLaunch
+  (err, launchCode) -> dispatchTimelineAction launchCode, ->
+)

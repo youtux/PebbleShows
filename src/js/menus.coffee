@@ -189,12 +189,12 @@ class ToWatch extends Menu
         (err, episodeInfo) =>
           return flashSubtitleError(err, e, data.originalSubtitle) if err
 
-          detailedItemCard = cards.createDefaultCard
+          detailedItemCard = new cards.Default(
             title: data.showTitle
             subtitle: "Season #{data.seasonNumber} Ep. #{data.episodeNumber}"
             body: "Title: #{episodeInfo.title}\n\
                    Overview: #{episodeInfo.overview}"
-
+          )
           detailedItemCard.show()
           changeSubtitleGivenEvent originalSubtitle, e
 
@@ -296,13 +296,14 @@ class Upcoming extends Menu
         (err, episodeInfo) =>
           return flashSubtitleError(err, e, data.originalSubtitle) if err
 
-          detailedItemCard = cards.createDefaultCard
+          detailedItemCard = new cards.Default(
             title: data.showTitle
             subtitle: "Season #{data.seasonNumber} Ep. #{data.episodeNumber}"
             body: "Airs on #{moment(data.airs_at).format(@userDateFormat)}\n\
                    at #{moment(data.airs_at).format(@getUserTimeFormat())}\n\
                    Title: #{episodeInfo.title}\n\
                    Overview: #{episodeInfo.overview}"
+          )
 
           detailedItemCard.show()
           changeSubtitleGivenEvent originalSubtitle, e
@@ -359,7 +360,7 @@ class Episodes extends Menu
     )
     @menu.on 'select', (e) ->
       data = e.item.data
-      detailedItemCard = cards.createDefaultCard(
+      detailedItemCard = new cards.Default(
         title: showTitle
         subtitle: "Season #{data.seasonNumber} Ep. #{data.episodeNumber}"
         body: "Title: #{data.episodeTitle}\n\
@@ -524,10 +525,11 @@ class Advanced extends Menu
         when 'restore'
           localStorage.clear()
 
-          cards.noEscape(
+          new cards.Notification(
             title: "One more step"
             body: "The watchapp has been restored.\n\
                    Please close and open it again."
+            true    # noEscape
           ).show()
 
         when 'timeFormat'
