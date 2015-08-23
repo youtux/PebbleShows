@@ -77,6 +77,8 @@ trakttv.request = (opt, callback) ->
 
       callback err
 
+trakttv.getPopular = (callback) ->
+  @request 'shows/popular', callback
 
 trakttv.getWatched = (callback) ->
   trakttv.request '/sync/watched/shows', callback
