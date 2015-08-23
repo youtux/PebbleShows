@@ -42,8 +42,8 @@ appendItemToSection = (menu, sectionIndex, newItem) ->
   menu.item sectionIndex, newItemPosition, newItem
 
 changeSubtitleGivenEvent = (text, e) =>
-  e.subtitle = text
-  e.menu.item e.sectionIndex, e.itemIndex, e
+  e.item.subtitle = text
+  e.menu.item e.sectionIndex, e.itemIndex, e.item
 
 isNextEpisodeForItemAired = (item) ->
   return false unless item.next_episode?
