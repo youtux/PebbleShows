@@ -54,7 +54,12 @@ compareByFunction = (keyFunction) ->
     0 if keyFunction(a) == keyFunction(b)
     1 if keyFunction(a) > keyFunction(b)
 
-flashSubtitle = (message, e, originalSubtitle = "") ->
+flashSubtitle = (message, e, originalSubtitle) ->
+  originalSubtitle ?=
+    if e.item.data
+      e.item.data.originalSubtitle
+    else
+      ""
   changeSubtitleGivenEvent message, e
 
   window.setTimeout(
@@ -62,7 +67,7 @@ flashSubtitle = (message, e, originalSubtitle = "") ->
     lookAndFeel.TIMEOUT_SUBTITLE_NOTIFICATION
   )
 
-flashSubtitleError = (err, e, originalSubtitle = "") ->
+flashSubtitleError = (err, e, originalSubtitle) ->
   flashSubtitle "Failed (#{err.message})", e, originalSubtitle
 
 class ReadyEmitter
