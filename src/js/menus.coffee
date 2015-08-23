@@ -20,18 +20,6 @@ ICON_MENU_CALENDAR = 'images/icon_calendar.png'
 ICON_MENU_EYE = 'images/icon_eye.png'
 ICON_MENU_HOME = 'images/icon_home.png'
 
-createDefaultMenu = (menuDef) ->
-  options = misc.merge(lookAndFeel.menuDefaults, menuDef || {})
-  options.sections ?= [
-    {
-      items: [{
-        title: "Loading..."
-      }]
-    }
-  ]
-  new UI.Menu options
-
-
 updateMenuSections = (menu, sections) ->
   menu.sections []
   menu.sections sections
@@ -94,9 +82,17 @@ class ReadyEmitter
     @_emitter.emit 'ready', {}
 
 class Menu
-  constructor: () ->
+  constructor: (menuDef) ->
     @readyEmitter = new ReadyEmitter()
-    @menu = null
+    options = misc.merge(lookAndFeel.menuDefaults, menuDef || {})
+    options.sections ?= [
+      {
+        items: [{
+          title: "Loading..."
+        }]
+      }
+    ]
+    @menu = new UI.Menu options
 
   whenReady: (callback) -> @readyEmitter.register(callback)
 
@@ -105,11 +101,10 @@ class Menu
 
 class ToWatch extends Menu
   constructor: ->
-    super
+    super()
     @icons =
       checked: ICON_MENU_CHECKED
       unchecked: ICON_MENU_UNCHECKED
-    @menu = createDefaultMenu()
 
     @initHandlers()
 
@@ -250,7 +245,6 @@ class ToWatch extends Menu
 class Upcoming extends Menu
   constructor: (@TimeFormatAccessor, @userDateFormat = "D MMMM YYYY", @fromDate = null) ->
     super()
-    @menu = createDefaultMenu()
     if @fromDate == null
       @fromDate = moment()
 
@@ -319,8 +313,7 @@ class Upcoming extends Menu
 
 class MyShows extends Menu
   constructor: () ->
-    super
-    @menu = createDefaultMenu()
+    super()
     @menu.on 'select', (e) =>
       element = e.item
       data = e.item.data
@@ -352,8 +345,7 @@ class MyShows extends Menu
 
 class Episodes extends Menu
   constructor: (showTitle, episodes) ->
-    super
-    @menu = createDefaultMenu(
+    super(
       sections: [{
         items:
           {
@@ -382,8 +374,7 @@ class Episodes extends Menu
 
 class Seasons extends Menu
   constructor: (showID, showTitle, seasons) ->
-    super
-    @menu = createDefaultMenu(
+    super(
       sections: [{
         items:
           {
@@ -420,13 +411,12 @@ class Seasons extends Menu
 
 class Main extends Menu
   constructor: (TimeFormatAccessor, fetchData) ->
-    super
     @toWatchMenu = new ToWatch()
     @myShowsMenu = new MyShows()
     @upcomingMenu = new Upcoming TimeFormatAccessor
     @advancedMenu = new Advanced fetchData, TimeFormatAccessor
 
-    @menu = createDefaultMenu(
+    super(
       sections: [
         items: [{
           title: 'To watch'
@@ -484,8 +474,7 @@ class Main extends Menu
 
 class Advanced extends Menu
   constructor: (@fetchData, @TimeFormatAccessor) ->
-    super()
-    @menu = createDefaultMenu
+    super(
       sections: [
         {
           items: [
@@ -519,8 +508,8 @@ class Advanced extends Menu
             subtitle: "Alessio Bogon @youtux"
           }]
         }
-
       ]
+    )
     @initHandlers()
     @readyEmitter.notify()
 
