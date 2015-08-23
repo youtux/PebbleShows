@@ -18,6 +18,7 @@ ICON_MENU_UNCHECKED = 'images/icon_menu_unchecked.png'
 ICON_MENU_CHECKED = 'images/icon_menu_checked.png'
 ICON_MENU_CALENDAR = 'images/icon_calendar.png'
 ICON_MENU_EYE = 'images/icon_eye.png'
+ICON_MENU_POPULAR = 'images/icon_popular.png'
 ICON_MENU_HOME = 'images/icon_home.png'
 
 updateMenuSections = (menu, sections) ->
@@ -508,6 +509,7 @@ class Main extends Menu
             id: 'upcoming'
         }, {
           title: 'Popular'
+          icon: ICON_MENU_POPULAR
           data:
             id: 'popular'
         }, {

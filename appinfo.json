@@ -35,6 +35,11 @@
         "type": "png"
       },
       {
+        "file": "images/icon_popular.png",
+        "name": "ICON_POPULAR",
+        "type": "png"
+      },
+      {
         "file": "images/icon_calendar.png",
         "name": "ICON_CALENDAR",
         "type": "png"
