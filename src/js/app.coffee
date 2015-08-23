@@ -13,8 +13,6 @@ Trakttv = require('trakttv')
 menus = require('menus')
 cards = require('cards')
 
-subscriptionsAlreadyUpdated = false
-
 setupLogging = () ->
   @originalFactory ?= log.methodFactory
   log.methodFactory = (methodName, logLevel) =>
@@ -84,8 +82,10 @@ fetchData = (callback) ->
 
 
 updateSubscriptions = (shows) ->
-  if subscriptionsAlreadyUpdated
+  if @subscriptionsAlreadyUpdated
     return
+
+  @subscriptionsAlreadyUpdated = true
 
   watchingShowIDs = ("#{item.show.ids.trakt}" for item in shows)
   log.info "The user is watching the following shows:
@@ -131,7 +131,7 @@ getLaunchData = (launchCode, callback) ->
     (err, status, request) ->
       log.error("GOT error: #{JSON.stringify err}")
       if status == null
-        err = new Error("Connection not available.")
+        err = new Error("Unable to connect to the server.")
       else
         err = new Error("Communication error (#{status}).")
       callback err
