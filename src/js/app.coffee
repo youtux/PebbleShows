@@ -7,6 +7,7 @@ Timeline = require('timeline')
 Appinfo = require('appinfo')
 
 async = require('async')
+log = require('loglevel')
 
 trakttv = require('trakttv')
 menus = require('menus')
@@ -14,16 +15,19 @@ cards = require('cards')
 
 subscriptionsAlreadyUpdated = false
 
+setupLogging = () ->
+  log.enableAll()
+
 logInfo = ->
   accessToken = Settings.option 'accessToken'
   if accessToken?
     accessToken = "#{accessToken[0..5]}..."
 
-  console.log "accessToken: #{accessToken}"
-  console.log "Version: #{Appinfo.versionLabel}"
+  log.info "accessToken: #{accessToken}"
+  log.info "Version: #{Appinfo.versionLabel}"
   Pebble.getTimelineToken?(
-    (token) -> console.log "Timeline user token: #{token[0..5]}..."
-    (errorString) -> console.log errorString
+    (token) -> log.info "Timeline user token: #{token[0..5]}..."
+    (errorString) -> log.error errorString
   )
 
 initSettings = () ->
@@ -33,7 +37,7 @@ initSettings = () ->
     url: config.PEBBLE_CONFIG_URL
     autoSave: true
   }, (e) ->
-    console.log "Returned from settings"
+    log.info "Returned from settings"
     signInWindow.hide()
     fetchData(->)
 
@@ -75,7 +79,7 @@ updateSubscriptions = (shows) ->
     return
 
   watchingShowIDs = ("#{item.show.ids.trakt}" for item in shows)
-  console.log "The user is watching the following shows:
+  log.info "The user is watching the following shows:
   #{JSON.stringify watchingShowIDs}"
 
   Pebble.timelineSubscriptions?(
@@ -83,40 +87,40 @@ updateSubscriptions = (shows) ->
       # TODO: use async
       subscriptionsAlreadyUpdated = true
 
-      console.log("Current timeline subscriptions #{JSON.stringify topicsSubscribed}");
+      log.info("Current timeline subscriptions #{JSON.stringify topicsSubscribed}");
       # Subscribe to new shows
       watchingShowIDs.forEach (showID) ->
         if showID in topicsSubscribed
           return
-        console.log "Subscribing to #{showID}"
+        log.info "Subscribing to #{showID}"
         Pebble.timelineSubscribe("#{showID}",
-          () -> console.log "Subscribed to #{showID}",
+          () -> log.info "Subscribed to #{showID}",
           (errorString) ->
-            console.log "Error while subscribing to #{showID}: #{errorString}"
+            log.error "Error while subscribing to #{showID}: #{errorString}"
           )
 
       # Unsubscribe from removed shows
       topicsSubscribed.forEach (topic) ->
         if topic in watchingShowIDs
           return
-        console.log "Unsubscribing from #{topic}"
+        log.info "Unsubscribing from #{topic}"
         Pebble.timelineUnsubscribe("#{topic}",
-          () -> console.log "Unsubscribed from #{topic}",
+          () -> log.info "Unsubscribed from #{topic}",
           (errorString) ->
-            console.log "Error while unsubscribing from #{topic}: #{errorString}"
+            log.error "Error while unsubscribing from #{topic}: #{errorString}"
           )
   )
 
 getLaunchData = (launchCode, callback) ->
-  console.log "getLaunchData url: #{config.BASE_SERVER_URL}/api/getLaunchData/#{launchCode}"
+  log.info "getLaunchData url: #{config.BASE_SERVER_URL}/api/getLaunchData/#{launchCode}"
   ajax
     url: "#{config.BASE_SERVER_URL}/api/getLaunchData/#{launchCode}"
     type: 'json'
     (data, status, request) ->
-      console.log("GOT DATA: #{JSON.stringify data}")
+      log.info("GOT DATA: #{JSON.stringify data}")
       callback null, data
     (err, status, request) ->
-      console.log("GOT error: #{JSON.stringify err}")
+      log.error("GOT error: #{JSON.stringify err}")
       if status == null
         err = new Error("Connection not available.")
       else
@@ -181,7 +185,7 @@ dispatchTimelineAction = (launchCode) ->
 checkLaunchReason = (normalAppLaunchCallback, timelineLaunchCallback)->
   Timeline.launch (e) ->
     if e.action
-      console.log "Timeline launch! launchCode: #{launchCode}"
+      log.info "Timeline launch! launchCode: #{launchCode}"
       launchCode = e.launchCode
       timelineLaunchCallback null, launchCode
     else
@@ -191,7 +195,7 @@ class TimeFormat
   @get: -> (Settings.data 'TimeFormat') or '12'
   @set: (format) ->
     if format != '12' and format != '24'
-      console.log "setTimeFormat: invalid argument #{format}"
+      log.warn "setTimeFormat: invalid argument #{format}"
       return
     Settings.data TimeFormat: format
 
@@ -221,6 +225,7 @@ signInWindow = new cards.Error(
   true # noEscape
 )
 
+setupLogging()
 logInfo()
 initSettings()
 checkLaunchReason(

@@ -5,6 +5,7 @@ async = require('async')
 myutil = require('myutil')
 
 Emitter = require('emitter')
+log = require('loglevel')
 
 trakttv = require('trakttv')
 misc = require('misc')
@@ -216,7 +217,7 @@ class ToWatch extends Menu
 
 
   update: (shows) ->
-    console.log "Updating toWatch"
+    log.info "Updating toWatch"
     sections =
       {
         title: item.show.title
@@ -261,7 +262,7 @@ class Upcoming extends Menu
 
   update: (@calendar = @calendar) ->
     return unless @calendar?
-    console.log "Updating Upcoming"
+    log.info "Updating Upcoming"
 
     shows = misc.flatten (items for dummyDate, items of @calendar)
     showsGrouped = misc.groupBy shows, (item) => moment(item.airs_at).format(@userDateFormat)
@@ -332,7 +333,7 @@ class MyShows extends Menu
         changeSubtitleGivenEvent "", e
 
   update: (@shows) ->
-    console.log "Updating MyShows"
+    log.info "Updating MyShows"
 
     sections = [
       items:

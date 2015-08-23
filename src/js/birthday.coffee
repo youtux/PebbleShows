@@ -4,6 +4,8 @@ Settings = require('settings')
 ui = require('ui')
 Wakeup = require('wakeup')
 
+log = require('loglevel')
+
 # Settings.init()
 
 bDay = moment('2015-05-14 10:00:00')
@@ -11,16 +13,16 @@ bDayBegin = moment('2015-05-14 00:00:00')
 bDayEnd = moment('2015-05-15 00:00:00')
 
 scheduleBDay = (time) ->
-  console.log "Scheduling bDay: #{bDay}"
-  console.log "Remaining: #{bDay.fromNow()}";
+  log.info "Scheduling bDay: #{bDay}"
+  log.info "Remaining: #{bDay.fromNow()}";
   Wakeup.schedule
     time: time.toDate()
     notifyIfMissed: true
     (e) ->
       if e.failed
-        console.log('Wakeup set failed: ' + e.error)
+        log.warn('Wakeup set failed: ' + e.error)
       else
-        console.log('Wakeup set! Event ID: ' + e.id)
+        log.info('Wakeup set! Event ID: ' + e.id)
         Settings.data 'bDay': {set: true, id: e.id}
 
 
@@ -38,13 +40,13 @@ showBDayWindow = () ->
       select: 'images/icon_dismiss.png'
 
   bDayCard.on 'click', 'select', (e) ->
-    console.log "Deleting the event..."
+    log.info "Deleting the event..."
     p = Settings.data('bDay') || {}
     p.dismissed = true
     Settings.data 'bDay': p
     bDayCard.hide()
   bDayCard.show()
-  console.log "BDay window show'd"
+  log.info "BDay window show'd"
 
 checkAndShowBDay = () ->
   rightDay = moment().isAfter(bDayBegin) and moment().isBefore(bDayEnd)

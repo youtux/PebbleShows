@@ -7,6 +7,7 @@ async = require('async')
 appinfo = require('appinfo')
 
 events = new Emitter()
+log = require('loglevel')
 
 merge = (objects...) ->
   res = {}
@@ -32,7 +33,7 @@ trakttv.BASE_URL = 'https://api-v2launch.trakt.tv'
 trakttv.on = (args...) -> events.on(args...)
 
 trakttv.request = (opt, callback) ->
-  console.log "trakttv.request: opt: #{JSON.stringify opt}"
+  log.debug "trakttv.request: opt: #{JSON.stringify opt}"
   if typeof opt == 'string'
     opt = if opt.indexOf('http') == 0
       url: opt
@@ -62,14 +63,14 @@ trakttv.request = (opt, callback) ->
     (response, status, req) =>
       callback null, response
     (response, status, req) ->
-      console.log "Request failure (#{status} #{opt.method} #{opt.url})"
+      log.error "Request failure (#{status} #{opt.method} #{opt.url})"
       if status == 401
-        console.log "Server says that authorization is required"
+        log.error "Server says that authorization is required"
         events.emit 'authorizationRequired', message: 'Authorization required from server'
         return
 
       if status == null
-        err = new Error("Connection not available.")
+        err = new Error("Unable to connect to the server.")
       else
         err = new Error("Communication error (#{status}).")
         err.status = status
