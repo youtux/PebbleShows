@@ -1,14 +1,15 @@
-config = require('config')
-
 ajax = require('ajax')
-Settings = require('settings')
-Emitter = require('emitter')
 async = require('async')
 appinfo = require('appinfo')
+log = require('loglevel')
+
+Emitter = require('emitter')
+Settings = require('settings')
+
+config = require('config')
+misc = require('misc')
 
 events = new Emitter()
-log = require('loglevel')
-misc = require('misc')
 
 class Trakttv
   @BASE_URL: 'https://api-v2launch.trakt.tv'

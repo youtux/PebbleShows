@@ -1,12 +1,10 @@
-# Next Tuesday at 6:00 a.m.
-# bDay = moment('2014-05-14 09:00:00');
-Settings = require('settings')
-ui = require('ui')
-Wakeup = require('wakeup')
-
+moment = require('moment')
 log = require('loglevel')
 
-# Settings.init()
+Settings = require('settings')
+UI = require('ui')
+Wakeup = require('wakeup')
+
 
 bDay = moment('2015-05-14 10:00:00')
 bDayBegin = moment('2015-05-14 00:00:00')
@@ -29,7 +27,7 @@ scheduleBDay = (time) ->
 showBDayWindow = () ->
   cake = "\ud83c\udf82"
   popper = "\ud83c\udf89"
-  bDayCard = new ui.Card
+  bDayCard = new UI.Card
     title: "#{popper} Developer's Birthday! #{popper}"
     body: "Today is the birthday of Alessio Bogon, the developer
            who brought to you Pebble Shows.

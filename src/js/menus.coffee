@@ -1,18 +1,18 @@
-UI = require('ui')
-Settings = require('settings')
-Appinfo = require('appinfo')
-async = require('async')
-myutil = require('myutil')
 ajax = require('ajax')
-config = require('config')
-
-Emitter = require('emitter')
+async = require('async')
 log = require('loglevel')
+moment = require('moment')
 
-trakttv = require('trakttv')
-misc = require('misc')
+Appinfo = require('appinfo')
+Emitter = require('emitter')
+Settings = require('settings')
+UI = require('ui')
+
 cards = require('cards')
+config = require('config')
 lookAndFeel = require('lookAndFeel')
+misc = require('misc')
+Trakttv = require('trakttv')
 
 ICON_MENU_UNCHECKED = 'images/icon_menu_unchecked.png'
 ICON_MENU_CHECKED = 'images/icon_menu_checked.png'
@@ -125,7 +125,7 @@ class ToWatch extends Menu
         # We need to uncheck
         changeSubtitleGivenEvent "Unchecking...", e
 
-        trakttv.uncheckEpisode data.showID, data.seasonNumber, data.episodeNumber,
+        Trakttv.uncheckEpisode data.showID, data.seasonNumber, data.episodeNumber,
           (err) =>
             return flashSubtitleError(err, e, data.originalSubtitle) if err
 
@@ -142,7 +142,7 @@ class ToWatch extends Menu
         # We need to check
         changeSubtitleGivenEvent "Checking...", e
 
-        trakttv.checkEpisode data.showID, data.seasonNumber, data.episodeNumber,
+        Trakttv.checkEpisode data.showID, data.seasonNumber, data.episodeNumber,
           (err) =>
             return flashSubtitleError(err, e, data.originalSubtitle) if err
 
@@ -156,7 +156,7 @@ class ToWatch extends Menu
               lookAndFeel.TIMEOUT_SUBTITLE_NOTIFICATION
             )
 
-            trakttv.fetchShowProgress data.showID,
+            Trakttv.fetchShowProgress data.showID,
               (err, show) =>
                 return cards.flashError(err) if err
 
@@ -188,7 +188,7 @@ class ToWatch extends Menu
 
       changeSubtitleGivenEvent "Loading...", e
 
-      trakttv.getEpisodeData data.showID, data.seasonNumber, data.episodeNumber,
+      Trakttv.getEpisodeData data.showID, data.seasonNumber, data.episodeNumber,
         (err, episodeInfo) =>
           return flashSubtitleError(err, e, data.originalSubtitle) if err
 
@@ -301,7 +301,7 @@ class Upcoming extends Menu
 
       changeSubtitleGivenEvent "Loading...", e
 
-      trakttv.getEpisodeData data.showID, data.seasonNumber, data.episodeNumber,
+      Trakttv.getEpisodeData data.showID, data.seasonNumber, data.episodeNumber,
         (err, episodeInfo) =>
           return flashSubtitleError(err, e, data.originalSubtitle) if err
 
@@ -406,7 +406,7 @@ class Seasons extends Menu
       async.map(
         season.episodes,
         (ep, callback) =>
-          trakttv.getEpisodeData showID, data.seasonNumber, ep.number, callback
+          Trakttv.getEpisodeData showID, data.seasonNumber, ep.number, callback
         (err, episodes) =>
           return flashSubtitleError(err, e, data.originalSubtitle) if err
 

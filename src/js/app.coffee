@@ -1,15 +1,15 @@
-config = require('config')
-
 ajax = require('ajax')
-UI = require('ui')
-Settings = require('settings')
-Timeline = require('timeline')
-Appinfo = require('appinfo')
-
 async = require('async')
 log = require('loglevel')
+moment = require('moment')
 
-trakttv = require('trakttv')
+Appinfo = require('appinfo')
+Settings = require('settings')
+Timeline = require('timeline')
+UI = require('ui')
+
+config = require('config')
+Trakttv = require('trakttv')
 menus = require('menus')
 cards = require('cards')
 
@@ -51,18 +51,18 @@ initSettings = () ->
     fetchData(->)
 
 setupEvents = (toWatchMenu, myShowsMenu, upcomingMenu, signInWindow) ->
-  trakttv.on 'authorizationRequired', (event) ->
+  Trakttv.on 'authorizationRequired', (event) ->
     message = event.message
     signInWindow.show()
 
-  trakttv.on 'update', 'shows', (event) ->
+  Trakttv.on 'update', 'shows', (event) ->
     shows = event.shows
     Settings.data shows: shows
     toWatchMenu.update(shows)
     myShowsMenu.update(shows)
     updateSubscriptions shows
 
-  trakttv.on 'update', 'calendar', (event) ->
+  Trakttv.on 'update', 'calendar', (event) ->
     calendar = event.calendar
     Settings.data calendar: calendar
     upcomingMenu.update(calendar)
@@ -71,12 +71,12 @@ fetchData = (callback) ->
   async.parallel(
     [
       (getCalendarCallback) ->
-        trakttv.getCalendar(
+        Trakttv.getCalendar(
           moment().subtract(1, 'day').format('YYYY-MM-DD'),
           7,
           getCalendarCallback
         )
-      trakttv.fetchToWatchList
+      Trakttv.fetchToWatchList
     ],
     (err, result) ->
       callback err, null
@@ -151,7 +151,7 @@ dispatchTimelineAction = (launchCode) ->
       )
       statusCard.show()
 
-      trakttv.markEpisode(episodeID, true, null, (err, result) =>
+      Trakttv.markEpisode(episodeID, true, null, (err, result) =>
         if err
           cards.Error.fromError(err).show()
           statusCard.hide()
@@ -173,7 +173,7 @@ dispatchTimelineAction = (launchCode) ->
       )
       statusCard.show()
 
-      trakttv.checkInEpisode(episodeID, (err, result) ->
+      Trakttv.checkInEpisode(episodeID, (err, result) ->
         if err
           if err.status == 409
             cards.Error.fromMessage(
