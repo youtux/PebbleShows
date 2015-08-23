@@ -38,8 +38,6 @@ logInfo = ->
   )
 
 initSettings = () ->
-  # TODO: Check why when returning from settings all the calls are duplicated
-  Settings.init()
   Settings.config {
     url: config.PEBBLE_CONFIG_URL
     autoSave: true
