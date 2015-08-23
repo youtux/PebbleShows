@@ -27,8 +27,8 @@ class Notification extends Default
     super(
       misc.merge(
         title: 'Info'
-        titleColor: 'white'
-        subtitleColor: 'white'
+        titleColor: lookAndFeel.textColor
+        subtitleColor: lookAndFeel.textColor
         style: 'large'
         cardDef
       )
