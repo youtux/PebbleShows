@@ -8,131 +8,109 @@ appinfo = require('appinfo')
 
 events = new Emitter()
 log = require('loglevel')
+misc = require('misc')
 
-merge = (objects...) ->
-  res = {}
-  for obj in objects
-    for key, value of obj
-       res[key] = value
-  res
+class Trakttv
+  @BASE_URL: 'https://api-v2launch.trakt.tv'
+  @on: (args...) => events.on(args...)
 
-uniqBy = (arr, key) ->
-    seen = {}
-    arr.filter (item)->
-      k = key(item)
-      if seen.hasOwnProperty(k)
-        false
+  @request: (opt, callback) =>
+    log.debug "trakttv.request: opt: #{JSON.stringify opt}"
+    if typeof opt == 'string'
+      opt = if opt.indexOf('http') == 0
+        url: opt
       else
-        seen[k] = true
-        true
+        action: opt
 
-trakttv = {}
+    opt.method ?= 'GET'
 
-trakttv.BASE_URL = 'https://api-v2launch.trakt.tv'
+    if opt.action[0] == '/'
+      opt.action = opt.action[1..]
 
-trakttv.on = (args...) -> events.on(args...)
+    opt.url ?= "#{@BASE_URL}/#{opt.action}"
 
-trakttv.request = (opt, callback) ->
-  log.debug "trakttv.request: opt: #{JSON.stringify opt}"
-  if typeof opt == 'string'
-    opt = if opt.indexOf('http') == 0
-      url: opt
-    else
-      action: opt
+    accessToken = Settings.option 'accessToken'
+    unless accessToken?
+      events.emit 'authorizationRequired', message: 'Missing access token'
 
-  opt.method ?= 'GET'
+    ajax
+      url: opt.url
+      type: 'json'
+      headers:
+        'trakt-api-version': 2
+        'trakt-api-key': config.TRAKT_CLIENT_ID
+        Authorization: "Bearer #{accessToken}"
+      method: opt.method
+      data: opt.data
+      (response, status, req) =>
+        callback null, response
+      (response, status, req) =>
+        log.error "Request failure (#{status} #{opt.method} #{opt.url})"
+        if status == 401
+          log.error "Server says that authorization is required"
+          events.emit 'authorizationRequired', message: 'Authorization required from server'
+          return
 
-  if opt.action[0] == '/'
-    opt.action = opt.action[1..]
+        if status == null
+          err = new Error("Unable to connect to the server.")
+        else
+          err = new Error("Communication error (#{status}).")
+          err.status = status
 
-  opt.url ?= "#{trakttv.BASE_URL}/#{opt.action}"
+        callback err
 
-  accessToken = Settings.option 'accessToken'
-  unless accessToken?
-    events.emit 'authorizationRequired', message: 'Missing access token'
+  @getPopular: (callback) => @request 'shows/popular', callback
 
-  ajax
-    url: opt.url
-    type: 'json'
-    headers:
-      'trakt-api-version': 2
-      'trakt-api-key': config.TRAKT_CLIENT_ID
-      Authorization: "Bearer #{accessToken}"
-    method: opt.method
-    data: opt.data
-    (response, status, req) =>
-      callback null, response
-    (response, status, req) ->
-      log.error "Request failure (#{status} #{opt.method} #{opt.url})"
-      if status == 401
-        log.error "Server says that authorization is required"
-        events.emit 'authorizationRequired', message: 'Authorization required from server'
-        return
+  @getWatched: (callback) => @request '/sync/watched/shows', callback
 
-      if status == null
-        err = new Error("Unable to connect to the server.")
-      else
-        err = new Error("Communication error (#{status}).")
-        err.status = status
+  @getWatchList: (callback) => @request '/sync/watchlist/shows', callback
 
-      callback err
+  @fetchToWatchList: (callback) =>
+    async.parallel(
+      watched: @getWatched
+      watchlist: @getWatchList
+      (err, result) =>
+        return callback(err) if err
 
-trakttv.getPopular = (callback) ->
-  @request 'shows/popular', callback
+        shows = misc.uniqBy(
+          Array::concat(result.watchlist, result.watched)
+          (elem) => elem.show.ids.trakt
+        )
 
-trakttv.getWatched = (callback) ->
-  trakttv.request '/sync/watched/shows', callback
+        async.each(
+          shows,
+          (item, doneItem) =>
+            showID = item.show.ids.trakt
+            @fetchShowProgress showID,
+              (err, showProgress) =>
+                return doneItem() if err
 
-trakttv.getWatchList = (callback) ->
-  trakttv.request '/sync/watchlist/shows', callback
+                item = i for i in shows when i.show.ids.trakt == showID
 
+                item.next_episode = showProgress.next_episode
+                item.seasons = showProgress.seasons
 
-trakttv.fetchToWatchList = (callback) ->
-  async.parallel(
-    watched: trakttv.getWatched
-    watchlist: trakttv.getWatchList
-    (err, result) =>
-      return callback(err) if err?
+                events.emit 'update', 'show', show: item
 
-      shows = uniqBy(
-        Array::concat(result.watchlist, result.watched)
-        (elem) -> elem.show.ids.trakt
-      )
+                doneItem()
+              (status) =>
+                doneItem()
+          (err) =>
+            events.emit 'update', 'shows', shows: shows
+            callback err, shows
+        )
+    )
 
-      async.each(
-        shows,
-        (item, doneItem) ->
-          showID = item.show.ids.trakt
-          trakttv.fetchShowProgress showID,
-            (err, showProgress) ->
-              return doneItem() if err?
+  @getCalendar: (fromDate, daysWindow, callback) =>
+    @request "/calendars/shows/#{fromDate}/#{daysWindow}",
+      (err, response) =>
+        return callback(err) if err
 
-              item = i for i in shows when i.show.ids.trakt == showID
+        events.emit 'update', 'calendar', calendar: response
+        callback null, response
 
-              item.next_episode = showProgress.next_episode
-              item.seasons = showProgress.seasons
-
-              events.emit 'update', 'show', show: item
-
-              doneItem()
-            (status) ->
-              doneItem()
-        (err) ->
-          events.emit 'update', 'shows', shows: shows
-          callback err, shows
-      )
-  )
-
-trakttv.getCalendar = (fromDate, daysWindow, callback) ->
-  trakttv.request "/calendars/shows/#{fromDate}/#{daysWindow}",
-    (err, response) =>
-      return callback(err) if err?
-
-      events.emit 'update', 'calendar', calendar: response
-      callback null, response
-
-trakttv.fetchShowProgress = (showID, callback) ->
-  trakttv.request "/shows/#{showID}/progress/watched", callback
+  @fetchShowProgress: (showID, callback) =>
+    @request "/shows/#{showID}/progress/watched", callback
 
 # {
 #   season: 1,
@@ -153,42 +131,42 @@ trakttv.fetchShowProgress = (showID, callback) ->
 #     showID: 1388
 #   }
 # }
-trakttv.getEpisodeData = (showID, seasonNumber, episodeNumber, callback) ->
-  result = {}
-# {
-#   "season":1,
-#   "number":1,
-#   "title":"Pilot",
-#   "ids":{
-#     "trakt":73482,
-#     "tvdb":349232,
-#     "imdb":"tt0959621",
-#     "tmdb":62085,
-#     "tvrage":637041
-#   }
-# }
-  trakttv.request "/shows/#{showID}/seasons/#{seasonNumber}/episodes/#{episodeNumber}",
-    (err, response) =>
-      return callback(err) if err?
+  @getEpisodeData: (showID, seasonNumber, episodeNumber, callback) =>
+    result = {}
+    # {
+    #   "season":1,
+    #   "number":1,
+    #   "title":"Pilot",
+    #   "ids":{
+    #     "trakt":73482,
+    #     "tvdb":349232,
+    #     "imdb":"tt0959621",
+    #     "tmdb":62085,
+    #     "tvrage":637041
+    #   }
+    # }
+    @request "/shows/#{showID}/seasons/#{seasonNumber}/episodes/#{episodeNumber}",
+      (err, response) =>
+        return callback(err) if err
 
-      result.title = response.title
-      result.episodeID = episodeID = response.ids.trakt
-      result.season = response.season
-      result.number = response.number
+        result.title = response.title
+        result.episodeID = episodeID = response.ids.trakt
+        result.season = response.season
+        result.number = response.number
 
-      trakttv.searchEpisode episodeID, (err, response) ->
-        return callback(err) if err?
+        @searchEpisode episodeID, (err, response) =>
+          return callback(err) if err
 
-        result.overview = response.episode.overview
-        result.images = response.episode.images
+          result.overview = response.episode.overview
+          result.images = response.episode.images
 
-        result.show =
-          title: response.show.title
-          showID: response.show.ids.trakt
+          result.show =
+            title: response.show.title
+            showID: response.show.ids.trakt
 
-        events.emit 'update', 'episode', episode: result
+          events.emit 'update', 'episode', episode: result
 
-        callback null, result
+          callback null, result
 
 #   {
 #     "type":"episode",
@@ -234,94 +212,94 @@ trakttv.getEpisodeData = (showID, seasonNumber, episodeNumber, callback) ->
 #       }
 #     }
 #   }
-trakttv.searchEpisode = (episodeID, callback) ->
-  trakttv.request "/search?id_type=trakt-episode&id=#{episodeID}",
-    (err, response) =>
-      return callback(err) if err?
+  @searchEpisode: (episodeID, callback) =>
+    @request "/search?id_type=trakt-episode&id=#{episodeID}",
+      (err, response) =>
+        return callback(err) if err
 
-      callback null, response[0]
+        callback null, response[0]
 
-trakttv.markEpisode = (episodeObj, seen, watched_at, callback) ->
-  episode =
-    if (typeof episodeObj) == 'number'
-      {
-        ids:
-          trakt: episodeObj
-      }
-    else
-      episodeObj
+  @markEpisode: (episodeObj, seen, watched_at, callback) =>
+    episode =
+      if (typeof episodeObj) == 'number'
+        {
+          ids:
+            trakt: episodeObj
+        }
+      else
+        episodeObj
 
-  # HACK: clone obj
-  episode = JSON.parse(JSON.stringify(episode))
-  episode.watched_at = watched_at
+    # HACK: clone obj
+    episode = JSON.parse(JSON.stringify(episode))
+    episode.watched_at = watched_at
 
-  action =
-    if seen
-      '/sync/history'
-    else
-      '/sync/history/remove'
+    action =
+      if seen
+        '/sync/history'
+      else
+        '/sync/history/remove'
 
-  body =
-    episodes: [episode]
+    body =
+      episodes: [episode]
 
-  @request
-    action: action
-    method: 'POST'
-    data: body
-    callback
+    @request
+      action: action
+      method: 'POST'
+      data: body
+      callback
 
-trakttv.checkInEpisode = (episodeObj, callback) ->
-  episode =
-    if (typeof episodeObj) == 'number'
-      {
-        ids:
-          trakt: episodeObj
-      }
-    else
-      episodeObj
+  @checkInEpisode: (episodeObj, callback) =>
+    episode =
+      if (typeof episodeObj) == 'number'
+        {
+          ids:
+            trakt: episodeObj
+        }
+      else
+        episodeObj
 
-  # HACK: clone obj
-  episode = JSON.parse(JSON.stringify(episode))
+    # HACK: clone obj
+    episode = JSON.parse(JSON.stringify(episode))
 
-  @request
-    action: '/checkin'
-    method: 'POST'
-    data:
-      episode: episode
-      app_version: appinfo.versionLabel
-    callback
+    @request
+      action: '/checkin'
+      method: 'POST'
+      data:
+        episode: episode
+        app_version: appinfo.versionLabel
+      callback
 
-trakttv.modifyEpisodeCheckState = (showID, seasonNumber, episodeNumber, state, callback) ->
-  request =
-    shows: [
-      ids: trakt: showID
-      seasons: [{
-        number: seasonNumber
-        episodes: [{
-          number: episodeNumber
+  @modifyEpisodeCheckState: (showID, seasonNumber, episodeNumber, state, callback) =>
+    request =
+      shows: [
+        ids: trakt: showID
+        seasons: [{
+          number: seasonNumber
+          episodes: [{
+            number: episodeNumber
+          }]
         }]
-      }]
-    ]
+      ]
 
-  action =
-    if state == 'check'
-      '/sync/history'
-    else
-      '/sync/history/remove'
+    action =
+      if state == 'check'
+        '/sync/history'
+      else
+        '/sync/history/remove'
 
-  trakttv.request
-    action: action
-    method: 'POST'
-    data: request
-    (err, response) =>
-      return callback(err) if err?
+    @request
+      action: action
+      method: 'POST'
+      data: request
+      (err, response) =>
+        return callback(err) if err
 
-      callback null
+        callback null
 
-trakttv.checkEpisode = (showID, seasonNumber, episodeNumber, callback) ->
-  trakttv.modifyEpisodeCheckState showID, seasonNumber, episodeNumber, 'check', callback
+  @checkEpisode: (showID, seasonNumber, episodeNumber, callback) =>
+    @modifyEpisodeCheckState showID, seasonNumber, episodeNumber, 'check', callback
 
-trakttv.uncheckEpisode = (showID, seasonNumber, episodeNumber, callback) ->
-  trakttv.modifyEpisodeCheckState showID, seasonNumber, episodeNumber, 'uncheck', callback
+  @uncheckEpisode: (showID, seasonNumber, episodeNumber, callback) =>
+    @modifyEpisodeCheckState showID, seasonNumber, episodeNumber, 'uncheck', callback
 
-module.exports = trakttv
+module.exports = Trakttv
