@@ -14,15 +14,16 @@ menus = require('menus')
 cards = require('cards')
 
 setupLogging = () ->
+  @sessionLogs ?= []
   @originalFactory ?= log.methodFactory
   log.methodFactory = (methodName, logLevel) =>
     return (message) =>
       @originalFactory(methodName, logLevel)(message)
 
       logMessage = "[#{new Date().toISOString()}] #{methodName}: #{message}"
-      logs = (Settings.data 'logs') or []
-      logs.push(logMessage)
-      Settings.data 'logs': logs
+      sessionLogs.push(logMessage)
+
+      Settings.data 'logs': sessionLogs
   log.enableAll()
 
 logInfo = ->
