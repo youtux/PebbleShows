@@ -652,7 +652,7 @@ class Advanced extends Menu
                 body: "Please send an email to #{config.SUPPORT_EMAIL}
                        including the following ID:\n\
                        #{accountToken}\n\
-                       (You can take a screenshot of this screen)"
+                       (Just take a photo)"
               ).show()
             (err, status, request) ->
               changeSubtitleGivenEvent "", e
