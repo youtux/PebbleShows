@@ -1,3 +1,5 @@
+Platform = require('platform')
+
 # prioritize objects on the right
 merge = (objects...) ->
   res = {}
@@ -23,7 +25,7 @@ groupBy = (arr, key) ->
 
 flatten = (arr) -> Array::concat(arr...)
 
-colorsAvailable = Pebble.getActiveWatchInfo?().platform == "basalt"
+colorsAvailable = Platform.version() == "basalt"
 
 module.exports =
   merge: merge
