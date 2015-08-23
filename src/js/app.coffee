@@ -34,7 +34,7 @@ logInfo = ->
   log.info "accessToken: #{accessToken}"
   log.info "Version: #{Appinfo.versionLabel}"
   Pebble.getTimelineToken?(
-    (token) -> log.info "Timeline user token: #{token[0..5]}..."
+    (token) -> log.info "Timeline user token: #{token}..."
     (errorString) -> log.error errorString
   )
 
