@@ -60,11 +60,68 @@ class Trakttv
 
         callback err
 
-  @getPopular: (callback) => @request 'shows/popular', callback
+  @getPopular: (opts, callback) =>
+    opts = misc.merge({limit: 30, page: 1}, opts || {})
+    @request "/shows/popular?page=#{opts.page}&limit=#{opts.limit}", (err, response) =>
+      return callback(err) if err
+      events.emit 'update', 'popularShows', popularShows: response
+
+      callback err, response
 
   @getWatched: (callback) => @request '/sync/watched/shows', callback
 
   @getWatchList: (callback) => @request '/sync/watchlist/shows', callback
+
+# {
+#   "title": "Sherlock",
+#   "overview": "Sherlock is a British television crime drama that presents a contemporary adaptation of Sir Arthur Conan Doyle's Sherlock Holmes detective stories. Created by Steven Moffat and Mark Gatiss, it stars Benedict Cumberbatch as Sherlock Holmes and Martin Freeman as Doctor John Watson.",
+#   "year": 2010,
+#   "images": {
+#     "poster": {
+#       "full": "https://walter.trakt.us/images/shows/000/019/792/posters/original/6311e0343c.jpg",
+#       "medium": "https://walter.trakt.us/images/shows/000/019/792/posters/medium/6311e0343c.jpg",
+#       "thumb": "https://walter.trakt.us/images/shows/000/019/792/posters/thumb/6311e0343c.jpg"
+#     },
+#     "fanart": {
+#       "full": "https://walter.trakt.us/images/shows/000/019/792/fanarts/original/049849b455.jpg",
+#       "medium": "https://walter.trakt.us/images/shows/000/019/792/fanarts/medium/049849b455.jpg",
+#       "thumb": "https://walter.trakt.us/images/shows/000/019/792/fanarts/thumb/049849b455.jpg"
+#     }
+#   },
+#   "ids": {
+#     "trakt": 19792,
+#     "slug": "sherlock",
+#     "tvdb": 176941,
+#     "imdb": "tt1475582",
+#     "tmdb": 19885,
+#     "tvrage": 23433
+#   }
+# }
+  @getShowData: (showID, callback) =>
+    @request "/search?id_type=trakt-show&id=#{showID}", (err, response) =>
+      return callback(err) if err
+
+      return callback null, response[0].show
+
+  @addShowToWatchList: (showID, callback) =>
+    body = shows: [ ids: trakt: showID ]
+
+    @request(
+      action: "/sync/watchlist"
+      method: 'post'
+      data: body,
+      callback
+    )
+
+  @removeShowFromWatchList: (showID, callback) =>
+    body = shows: [ ids: trakt: showID ]
+
+    @request(
+      action: "/sync/watchlist/remove"
+      method: 'post'
+      data: body,
+      callback
+    )
 
   @fetchToWatchList: (callback) =>
     async.parallel(

@@ -48,7 +48,7 @@ initSettings = () ->
     signInWindow.hide()
     fetchData(->)
 
-setupEvents = (toWatchMenu, myShowsMenu, upcomingMenu, signInWindow) ->
+setupEvents = (toWatchMenu, upcomingMenu, popularMenu, myShowsMenu, signInWindow) ->
   Trakttv.on 'authorizationRequired', (event) ->
     message = event.message
     signInWindow.show()
@@ -60,6 +60,11 @@ setupEvents = (toWatchMenu, myShowsMenu, upcomingMenu, signInWindow) ->
     myShowsMenu.update(shows)
     updateSubscriptions shows
 
+  Trakttv.on 'update', 'popularShows', (event) ->
+    popularShows = event.popularShows
+    Settings.data popularShows: popularShows
+    popularMenu.update popularShows
+
   Trakttv.on 'update', 'calendar', (event) ->
     calendar = event.calendar
     Settings.data calendar: calendar
@@ -68,15 +73,17 @@ setupEvents = (toWatchMenu, myShowsMenu, upcomingMenu, signInWindow) ->
 fetchData = (callback) ->
   async.parallel(
     [
-      (getCalendarCallback) ->
+      Trakttv.fetchToWatchList
+      (getCalendarCallback) =>
         Trakttv.getCalendar(
           moment().subtract(1, 'day').format('YYYY-MM-DD'),
           7,
           getCalendarCallback
         )
-      Trakttv.fetchToWatchList
-    ],
-    (err, result) ->
+      (getPopularCallback) => Trakttv.getPopular(null, getPopularCallback)
+    ]
+    (err, result) =>
+      log.error("fetchData error: #{err.message}") if err
       callback err, null
   )
 
@@ -212,9 +219,10 @@ normalAppLaunch = () ->
   mainMenu = new menus.Main TimeFormat, fetchData
   toWatchMenu = mainMenu.toWatchMenu
   upcomingMenu = mainMenu.upcomingMenu
+  popularMenu = mainMenu.popularMenu
   myShowsMenu = mainMenu.myShowsMenu
 
-  setupEvents toWatchMenu, myShowsMenu, upcomingMenu, signInWindow
+  setupEvents toWatchMenu, upcomingMenu, popularMenu, myShowsMenu, signInWindow
 
   if shows = Settings.data 'shows'
     toWatchMenu.update shows

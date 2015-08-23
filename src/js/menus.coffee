@@ -413,12 +413,85 @@ class Seasons extends Menu
       )
     @readyEmitter.notify()
 
+class Popular extends Menu
+  constructor: () ->
+    super()
+    @emitter = new Emitter()
+
+    @menu.on 'select', (e) =>
+      element = e.item
+      data = element.data
+
+      changeSubtitleGivenEvent "Loading...", e
+
+      Trakttv.getShowData data.showID, (err, showData) =>
+        return flashSubtitleError(err, e) if err
+
+        changeSubtitleGivenEvent data.originalSubtitle, e
+
+        detailedItemCard = new cards.Default(
+          title: showData.title
+          subtitle: showData.year
+          body: "Overview: #{showData.overview}"
+        )
+        detailedItemCard.show()
+
+
+    @menu.on 'longSelect', (e) =>
+      # Add to the watchlist
+      element = e.item
+      data = element.data
+      log.debug "longSelect: element: #{JSON.stringify element}"
+
+      if data.inWatchList
+        changeSubtitleGivenEvent "Removing from watchlist...", e
+        Trakttv.removeShowFromWatchList data.showID, (err, response) =>
+          return flashSubtitleError(err, e) if err
+
+          flashSubtitle "Done!", e
+          data.inWatchList = false
+
+          @emitter.emit 'change', 'watchList', {}
+      else
+        changeSubtitleGivenEvent "Adding to watchlist...", e
+        Trakttv.addShowToWatchList data.showID, (err, response) =>
+          return flashSubtitleError(err, e) if err
+
+          flashSubtitle "Added to watchlist!", e
+          data.inWatchList = true
+
+          @emitter.emit 'change', 'watchList', {}
+          log.debug "longSelect: element after: #{JSON.stringify element}"
+
+  on: (args...) -> @emitter.on(args...)
+
+  update: (@popularShows) ->
+    log.info "Updating popularMenu"
+    sections = [
+      items:
+        {
+          title: show.title
+          subtitle: show.year
+          data:
+            originalSubtitle: show.year
+            showID: show.ids.trakt
+            inWatchList: false
+        } for show in @popularShows
+    ]
+
+    updateMenuSections @menu, sections
+    @readyEmitter.notify()
+
 
 class Main extends Menu
   constructor: (TimeFormatAccessor, fetchData) ->
     @toWatchMenu = new ToWatch()
-    @myShowsMenu = new MyShows()
     @upcomingMenu = new Upcoming TimeFormatAccessor
+    @popularMenu = new Popular()
+    @myShowsMenu = new MyShows()
+
+    @popularMenu.on 'change', 'watchList', (event) => fetchData(=>)
+
     @advancedMenu = new Advanced fetchData, TimeFormatAccessor
 
     super(
@@ -433,6 +506,10 @@ class Main extends Menu
           icon: ICON_MENU_CALENDAR
           data:
             id: 'upcoming'
+        }, {
+          title: 'Popular'
+          data:
+            id: 'popular'
         }, {
           title: 'My shows'
           icon: ICON_MENU_HOME
@@ -463,6 +540,13 @@ class Main extends Menu
           @upcomingMenu.whenReady (err) =>
             return flashSubtitleError(err, e) if err?
             @upcomingMenu.show()
+            changeSubtitleGivenEvent "", e
+
+        when 'popular'
+          changeSubtitleGivenEvent "Loading...", e
+          @upcomingMenu.whenReady (err) =>
+            return flashSubtitleError(err, e) if err?
+            @popularMenu.show()
             changeSubtitleGivenEvent "", e
 
         when 'myShows'
