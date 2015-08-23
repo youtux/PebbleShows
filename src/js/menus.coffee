@@ -3,6 +3,8 @@ Settings = require('settings')
 Appinfo = require('appinfo')
 async = require('async')
 myutil = require('myutil')
+ajax = require('ajax')
+config = require('config')
 
 Emitter = require('emitter')
 log = require('loglevel')
@@ -492,6 +494,11 @@ class Advanced extends Menu
               subtitle: "#{@TimeFormatAccessor.get()}h"
               data:
                 id: 'timeFormat'
+            },
+            {
+              title: "Report a problem"
+              data:
+                id: 'reportProblem'
             }, {
               title: 'Refresh shows'
               data:
@@ -546,6 +553,36 @@ class Advanced extends Menu
           else
             @TimeFormatAccessor.set '24'
             changeSubtitleGivenEvent "24h", e
+
+        when 'reportProblem'
+          logs = Settings.data 'logs'
+          accountToken = Pebble.getAccountToken()
+
+          changeSubtitleGivenEvent "Collecting logs...", e
+
+          ajax(
+            url: "#{config.LOG_SERVER}/#{accountToken}/logs"
+            method:'post'
+            type: 'json'
+            data: {logs:logs}
+            (data, status, request) ->
+              changeSubtitleGivenEvent "", e
+              landingCard = new cards.Notification(
+                style: 'small'
+                body: "Please send an email to #{config.SUPPORT_EMAIL}
+                       including the following ID:\n\
+                       #{accountToken}\n\
+                       (You can take a screenshot of this screen)"
+              ).show()
+            (err, status, request) ->
+              changeSubtitleGivenEvent "", e
+              if status == null
+                err = new Error("Unable to connect to the server.")
+              else
+                err = new Error("Communication error (#{status}).")
+                err.status = status
+              landingCard = cards.Error.fromError(err).show()
+            )
 
 module.exports =
   Main: Main
