@@ -2,15 +2,17 @@ Platform = require('platform')
 
 DEFAULT_RETRY_DELAY = 5000
 
+misc = {}
+
 # prioritize objects on the right
-merge = (objects...) ->
+misc.merge = (objects...) ->
   res = {}
   for obj in objects
     for key, value of obj
        res[key] = value
   res
 
-uniqBy = (arr, key) ->
+misc.uniqBy = (arr, key) ->
     seen = {}
     arr.filter (item)->
       k = key(item)
@@ -20,19 +22,19 @@ uniqBy = (arr, key) ->
         seen[k] = true
         true
 
-groupBy = (arr, key) ->
+misc.groupBy = (arr, key) ->
   grouped = {}
   (grouped[key e] ?= []).push e for e in arr
   grouped
 
-flatten = (arr) -> Array::concat(arr...)
+misc.flatten = (arr) -> Array::concat(arr...)
 
-arrayWithout = (arr, item) ->
+misc.arrayWithout = (arr, item) ->
   arr.filter (element) => element != item
 
-spawn = (func) -> window.setTimeout func, 0
+misc.spawn = (func) -> window.setTimeout func, 0
 
-retry = (func, callback, times = 10, delay = DEFAULT_RETRY_DELAY) ->
+misc.retry = (func, callback, times = 10, delay = DEFAULT_RETRY_DELAY) ->
   func (args...) =>
     err = args[0]
     if err
@@ -41,18 +43,10 @@ retry = (func, callback, times = 10, delay = DEFAULT_RETRY_DELAY) ->
       else
         log.error "retry: #{err}"
         log.info "retry: rescheduling in the next #{delay} ms..."
-        spawn () => (retry func, callback, times - 1, delay)
+        misc.spawn () => (retry func, callback, times - 1, delay)
         return
     callback args...
 
-colorsAvailable = Platform.version() == "basalt"
+misc.colorsAvailable = Platform.version() == "basalt"
 
-module.exports =
-  merge: merge
-  uniqBy: uniqBy
-  groupBy: groupBy
-  flatten: flatten
-  arrayWithout: arrayWithout
-  colorsAvailable: colorsAvailable
-  spawn: spawn
-  retry: retry
+module.exports = misc
