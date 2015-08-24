@@ -25,6 +25,9 @@ groupBy = (arr, key) ->
 
 flatten = (arr) -> Array::concat(arr...)
 
+arrayWithout = (arr, item) ->
+  arr.filter (element) => element != item
+
 colorsAvailable = Platform.version() == "basalt"
 
 module.exports =
@@ -32,4 +35,5 @@ module.exports =
   uniqBy: uniqBy
   groupBy: groupBy
   flatten: flatten
+  arrayWithout: arrayWithout
   colorsAvailable: colorsAvailable
