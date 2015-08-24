@@ -20,6 +20,8 @@ timelineSubscriptions = (callback) =>
 
 class MyTimeline
   @getUserTopics: (callback) =>
+    if not Pebble.timelineSubscriptions
+      return
     return @userTopics if @userTopics
 
     misc.retry timelineSubscriptions, (err, subscribedTopics) =>
