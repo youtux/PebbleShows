@@ -22,8 +22,10 @@ ICON_MENU_POPULAR = 'images/icon_popular.png'
 ICON_MENU_HOME = 'images/icon_home.png'
 
 updateMenuSections = (menu, sections) ->
-  menu.sections []
+  # FIXME: sections will not update if the menu is currently being displayed
   menu.sections sections
+  # FIXME: Remove this horrible hack, as soon as updating is fixed upstream
+  # menu._resolveMenu(true)
 
 appendItemToSection = (menu, sectionIndex, newItem) ->
   newItemPosition = (menu.section sectionIndex).items.length
