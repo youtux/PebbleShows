@@ -11,6 +11,8 @@ UI = require('ui')
 config = require('config')
 Trakttv = require('trakttv')
 menus = require('menus')
+misc = require('misc')
+MyTimeline = require('mytimeline')
 cards = require('cards')
 
 setupLogging = () ->
@@ -57,7 +59,11 @@ setupEvents = (toWatchMenu, upcomingMenu, popularMenu, myShowsMenu, signInWindow
     Settings.data shows: shows
     toWatchMenu.update(shows)
     myShowsMenu.update(shows)
-    updateSubscriptions shows
+
+    watchingShowIDs = ("#{item.show.ids.trakt}" for item in shows)
+    log.info "The user is watching the following shows:
+            #{JSON.stringify watchingShowIDs}"
+    MyTimeline.updateSubscriptions watchingShowIDs
 
   Trakttv.on 'update', 'popularShows', (event) ->
     popularShows = event.popularShows
@@ -84,46 +90,6 @@ fetchData = (callback) ->
     (err, result) =>
       log.error("fetchData error: #{err.message}") if err
       callback err, null
-  )
-
-
-updateSubscriptions = (shows) ->
-  if @subscriptionsAlreadyUpdated
-    return
-
-  @subscriptionsAlreadyUpdated = true
-
-  watchingShowIDs = ("#{item.show.ids.trakt}" for item in shows)
-  log.info "The user is watching the following shows:
-  #{JSON.stringify watchingShowIDs}"
-
-  Pebble.timelineSubscriptions?(
-    (topicsSubscribed) ->
-      # TODO: use async
-      subscriptionsAlreadyUpdated = true
-
-      log.info("Current timeline subscriptions #{JSON.stringify topicsSubscribed}");
-      # Subscribe to new shows
-      watchingShowIDs.forEach (showID) ->
-        if showID in topicsSubscribed
-          return
-        log.info "Subscribing to #{showID}"
-        Pebble.timelineSubscribe("#{showID}",
-          () -> log.info "Subscribed to #{showID}",
-          (errorString) ->
-            log.error "Error while subscribing to #{showID}: #{errorString}"
-          )
-
-      # Unsubscribe from removed shows
-      topicsSubscribed.forEach (topic) ->
-        if topic in watchingShowIDs
-          return
-        log.info "Unsubscribing from #{topic}"
-        Pebble.timelineUnsubscribe("#{topic}",
-          () -> log.info "Unsubscribed from #{topic}",
-          (errorString) ->
-            log.error "Error while unsubscribing from #{topic}: #{errorString}"
-          )
   )
 
 getLaunchData = (launchCode, callback) ->
