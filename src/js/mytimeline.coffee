@@ -2,23 +2,6 @@ log = require('loglevel')
 
 misc = require('misc')
 
-RETRY_DELAY = 1000
-
-spawn = (func) -> window.setTimeout func, 0
-
-retry = (func, callback, times = 10, delay = RETRY_DELAY) ->
-  func (args...) =>
-    err = args[0]
-    if err
-      if times == 0
-        return callback err
-      else
-        log.error "retry: #{err}"
-        log.info "retry: rescheduling in the next #{delay} ms..."
-        spawn () => (retry func, callback, times - 1, delay)
-        return
-    callback args...
-
 timelineSubscribe = (topic, callback) ->
   Pebble.timelineSubscribe topic,
     () => callback null
@@ -39,7 +22,7 @@ class MyTimeline
   @getUserTopics: (callback) =>
     return @userTopics if @userTopics
 
-    retry timelineSubscriptions, (err, subscribedTopics) =>
+    misc.retry timelineSubscriptions, (err, subscribedTopics) =>
       return callback(err) if err
 
       @userTopics = subscribedTopics
@@ -53,13 +36,13 @@ class MyTimeline
     if not @userTopics
       @getUserTopics (err) =>
         return log.error(err) if err
-        spawn () => @updateSubscriptions topics
+        misc.spawn () => @updateSubscriptions topics
       return
 
     topicsToSubscribe = topics.filter (t) => t not in @userTopics
     topicsToSubscribe.forEach (topic) =>
       log.info "Subscribing to #{topic}"
-      retry(
+      misc.retry(
         (cb) => timelineSubscribe topic, cb
         (err) =>
           return log.error(err) if err
@@ -70,7 +53,7 @@ class MyTimeline
     topicsToUnsubscribe = @userTopics.filter (t) => t not in topics
     topicsToUnsubscribe.forEach (topic) =>
       log.info "Unsubscribing from #{topic}"
-      retry(
+      misc.retry(
         (cb) => timelineUnsubscribe topic, cb
         (err) =>
           return log.error(err) if err
