@@ -1,3 +1,4 @@
+log = require('loglevel')
 Platform = require('platform')
 
 DEFAULT_RETRY_DELAY = 5000
@@ -43,7 +44,7 @@ misc.retry = (func, callback, times = 10, delay = DEFAULT_RETRY_DELAY) ->
       else
         log.error "retry: #{err}"
         log.info "retry: rescheduling in the next #{delay} ms..."
-        misc.spawn () => (retry func, callback, times - 1, delay)
+        misc.spawn () => (misc.retry func, callback, times - 1, delay)
         return
     callback args...
 
