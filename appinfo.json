@@ -74,7 +74,7 @@
   "shortName": "Shows",
   "uuid": "1596d615-c853-438c-9852-df68ce14d915",
   "versionCode": 1,
-  "versionLabel": "3.2",
+  "versionLabel": "3.3",
   "watchapp": {
     "watchface": false
   },
