@@ -60,6 +60,12 @@ class Trakttv
 
         callback err
 
+  @getUserSettings: (callback) =>
+    @request "/users/settings", (err, response) =>
+      return callback(err) if err
+      events.emit 'update', 'userSettings', userSettings: response
+      callback err, response
+
   @getPopular: (opts, callback) =>
     opts = misc.merge({limit: 30, page: 1}, opts || {})
     @request "/shows/popular?page=#{opts.page}&limit=#{opts.limit}", (err, response) =>
@@ -165,6 +171,14 @@ class Trakttv
         return callback(err) if err
 
         events.emit 'update', 'calendar', calendar: response
+        callback null, response
+
+  @getMyShowsCalendar: (fromDate, daysWindow, callback) =>
+    @request "/calendars/my/shows/#{fromDate}/#{daysWindow}?extended=full",
+      (err, response) =>
+        return callback(err) if err
+
+        events.emit 'update', 'myShowsCalendar', myShowsCalendar: response
         callback null, response
 
   @fetchShowProgress: (showID, callback) =>

@@ -1,7 +1,7 @@
 ajax = require('ajax')
 async = require('async')
 log = require('loglevel')
-moment = require('moment')
+moment = require('moment.timezone')
 
 Appinfo = require('appinfo')
 Emitter = require('emitter')
@@ -72,6 +72,21 @@ flashSubtitle = (message, e, originalSubtitle) ->
 
 flashSubtitleError = (err, e, originalSubtitle) ->
   flashSubtitle "Failed (#{err.message})", e, originalSubtitle
+
+convertTimezone = (date, userTimezone, showTimezone) =>
+  log.debug "formatDate: #{JSON.stringify date}, #{userTimezone}, #{showTimezone}"
+  date = moment(date)
+  isUserAmerican = userTimezone.indexOf("America") >= 0
+  isShowAmerican = showTimezone.indexOf("America") >= 0
+
+  if isUserAmerican and isShowAmerican
+    date.tz("America/New_York")
+    log.debug "Returning #{JSON.stringify date.toDate()}"
+    return date
+  else
+    log.debug "Returning #{JSON.stringify date}"
+    date
+
 
 class ReadyEmitter
   constructor: () ->
@@ -251,7 +266,7 @@ class ToWatch extends Menu
     @readyEmitter.notify()
 
 class Upcoming extends Menu
-  constructor: (@TimeFormatAccessor, @userDateFormat = "D MMMM YYYY", @fromDate = null) ->
+  constructor: (@TimeFormatAccessor, @userTimezone, @userDateFormat = "D MMMM YYYY", @fromDate = null) ->
     super()
     if @fromDate == null
       @fromDate = moment()
@@ -264,12 +279,20 @@ class Upcoming extends Menu
     else
       'h:mm a'
 
-  update: (@calendar = @calendar) ->
-    return unless @calendar?
+  update: (@myShowsCalendar = @myShowsCalendar, @userTimezone = @userTimezone) ->
+    return unless @myShowsCalendar?
     log.info "Updating Upcoming"
 
-    shows = misc.flatten (items for dummyDate, items of @calendar)
-    showsGrouped = misc.groupBy shows, (item) => moment(item.airs_at).format(@userDateFormat)
+    # shows = misc.flatten (items for dummyDate, items of @myShowsCalendar)
+    # showsGrouped = misc.groupBy shows, (item) => moment(item.airs_at).format(@userDateFormat)
+    #
+    calendarItems = JSON.parse JSON.stringify @myShowsCalendar
+
+    calendarItems.forEach (item) =>
+      item.episode.first_aired = convertTimezone(moment(item.episode.first_aired), @userTimezone, item.show.airs.timezone)
+
+    calendarItemsGrouped = misc.groupBy calendarItems, (item) =>
+        item.episode.first_aired.format(@userDateFormat)
 
     sections =
       {
@@ -277,16 +300,16 @@ class Upcoming extends Menu
         items:
           {
             title: item.show.title
-            subtitle: "S#{item.episode.season}E#{item.episode.number} | #{moment(item.airs_at).format(@getUserTimeFormat())}"
+            subtitle: "S#{item.episode.season}E#{item.episode.number} | #{item.episode.first_aired.format(@getUserTimeFormat())}"
             data:
               showID: item.show.ids.trakt
               showTitle: item.show.title
               seasonNumber: item.episode.season
               episodeNumber: item.episode.number
-              airs_at: item.airs_at
+              airs_at: item.episode.first_aired
 
-          } for item in items when moment(item.airs_at).isAfter(@fromDate)
-      } for dateFormatted, items of showsGrouped
+          } for item in items when moment(item.episode.first_aired).isAfter(@fromDate)
+      } for dateFormatted, items of calendarItemsGrouped
 
     updateMenuSections @menu, sections
     @readyEmitter.notify()
@@ -432,10 +455,14 @@ class Popular extends Menu
 
         changeSubtitleGivenEvent data.originalSubtitle, e
 
+        bannerURL = "#{config.BASE_SERVER_URL}/convert2png64?url=#{encodeURIComponent showData.images.fanart.thumb}"
+        log.info "Banner URL: #{bannerURL}"
+
         detailedItemCard = new cards.Default(
           title: showData.title
           subtitle: showData.year
           body: "Overview: #{showData.overview}"
+          banner: bannerURL
         )
         detailedItemCard.show()
 
@@ -487,9 +514,9 @@ class Popular extends Menu
 
 
 class Main extends Menu
-  constructor: (TimeFormatAccessor, fetchData) ->
+  constructor: (TimeFormatAccessor, fetchData, @userTimezone) ->
     @toWatchMenu = new ToWatch()
-    @upcomingMenu = new Upcoming TimeFormatAccessor
+    @upcomingMenu = new Upcoming TimeFormatAccessor, @userTimezone
     @popularMenu = new Popular()
     @myShowsMenu = new MyShows()
 

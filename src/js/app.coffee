@@ -70,22 +70,31 @@ setupEvents = (toWatchMenu, upcomingMenu, popularMenu, myShowsMenu, signInWindow
     Settings.data popularShows: popularShows
     popularMenu.update popularShows
 
-  Trakttv.on 'update', 'calendar', (event) ->
-    calendar = event.calendar
-    Settings.data calendar: calendar
-    upcomingMenu.update(calendar)
+  Trakttv.on 'update', 'myShowsCalendar', (event) ->
+    myShowsCalendar = event.myShowsCalendar
+    Settings.data myShowsCalendar: myShowsCalendar
+    upcomingMenu.update(myShowsCalendar)
+
+  Trakttv.on 'update', 'userSettings', (event) ->
+    userSettings = event.userSettings
+    Settings.data userSettings: userSettings
+    upcomingMenu.update(null, userSettings.account.timezone)
 
 fetchData = (callback) ->
   async.parallel(
     [
       Trakttv.fetchToWatchList
-      (getCalendarCallback) =>
-        Trakttv.getCalendar(
+      (cb) =>
+        Trakttv.getMyShowsCalendar(
           moment().subtract(1, 'day').format('YYYY-MM-DD'),
           7,
-          getCalendarCallback
+          cb
         )
-      (getPopularCallback) => Trakttv.getPopular(null, getPopularCallback)
+      (cb) => Trakttv.getPopular(null, cb)
+      (cb) => Trakttv.getUserSettings (err, userSettings) =>
+        return cb(err) if err
+        Settings.data userSettings: userSettings
+        cb(err, userSettings)
     ]
     (err, result) =>
       log.error("fetchData error: #{err.message}") if err
@@ -181,7 +190,8 @@ class TimeFormat
     Settings.data TimeFormat: format
 
 normalAppLaunch = () ->
-  mainMenu = new menus.Main TimeFormat, fetchData
+  userTimezone = (Settings.data 'userSettings')?.account.timezone
+  mainMenu = new menus.Main TimeFormat, fetchData, userTimezone
   toWatchMenu = mainMenu.toWatchMenu
   upcomingMenu = mainMenu.upcomingMenu
   popularMenu = mainMenu.popularMenu
@@ -193,8 +203,8 @@ normalAppLaunch = () ->
     toWatchMenu.update shows
     myShowsMenu.update myShowsMenu
 
-  if calendar = Settings.data 'calendar'
-    upcomingMenu.update calendar
+  if myShowsCalendar = Settings.data 'myShowsCalendar'
+    upcomingMenu.update myShowsCalendar
 
   mainMenu.show()
 
