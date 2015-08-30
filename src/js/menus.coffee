@@ -283,9 +283,6 @@ class Upcoming extends Menu
     return unless @myShowsCalendar?
     log.info "Updating Upcoming"
 
-    # shows = misc.flatten (items for dummyDate, items of @myShowsCalendar)
-    # showsGrouped = misc.groupBy shows, (item) => moment(item.airs_at).format(@userDateFormat)
-    #
     calendarItems = JSON.parse JSON.stringify @myShowsCalendar
 
     calendarItems.forEach (item) =>
