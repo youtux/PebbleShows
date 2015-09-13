@@ -288,7 +288,7 @@ class Upcoming extends Menu
 
     calendarItemsGrouped = misc.groupBy calendarItems, (item) =>
         item.episode.first_aired.format(@userDateFormat)
-
+    # TODO: show empty section when there are no shows
     sections =
       {
         title: dateFormatted
