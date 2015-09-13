@@ -42,6 +42,8 @@ class MyTimeline
       return
 
     topicsToSubscribe = topics.filter (t) => t not in @userTopics
+    topicsToUnsubscribe = @userTopics.filter (t) => t not in topics
+
     topicsToSubscribe.forEach (topic) =>
       log.info "Subscribing to #{topic}"
       misc.retry(
@@ -52,7 +54,6 @@ class MyTimeline
           @userTopics.push topic
       )
 
-    topicsToUnsubscribe = @userTopics.filter (t) => t not in topics
     topicsToUnsubscribe.forEach (topic) =>
       log.info "Unsubscribing from #{topic}"
       misc.retry(
