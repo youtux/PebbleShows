@@ -13,6 +13,7 @@ config = require('config')
 lookAndFeel = require('lookAndFeel')
 misc = require('misc')
 Trakttv = require('trakttv')
+AppSettings = require 'appsettings'
 
 ICON_MENU_UNCHECKED = 'images/icon_menu_unchecked.png'
 ICON_MENU_CHECKED = 'images/icon_menu_checked.png'
@@ -263,7 +264,7 @@ class ToWatch extends Menu
     @readyEmitter.notify()
 
 class Upcoming extends Menu
-  constructor: (@TimeFormatAccessor, @userTimezone, @userDateFormat = "D MMMM YYYY", @fromDate = null) ->
+  constructor: (@userTimezone, @userDateFormat = "D MMMM YYYY", @fromDate = null) ->
     super()
     if @fromDate == null
       @fromDate = moment()
@@ -271,7 +272,7 @@ class Upcoming extends Menu
     @initHandlers()
 
   getUserTimeFormat: () ->
-    if @TimeFormatAccessor.get() == '24'
+    if AppSettings.timeFormat == '24'
       'HH:mm'
     else
       'h:mm a'
@@ -313,6 +314,7 @@ class Upcoming extends Menu
     @menu.show()
 
   initHandlers: ->
+    AppSettings.on 'timeFormat', (event) => @update()
     @menu.on 'select', (e) =>
       element = e.item
       data = e.item.data
@@ -508,15 +510,15 @@ class Popular extends Menu
 
 
 class Main extends Menu
-  constructor: (TimeFormatAccessor, fetchData, @userTimezone) ->
+  constructor: (fetchData, @userTimezone) ->
     @toWatchMenu = new ToWatch()
-    @upcomingMenu = new Upcoming TimeFormatAccessor, @userTimezone
+    @upcomingMenu = new Upcoming @userTimezone
     @popularMenu = new Popular()
     @myShowsMenu = new MyShows()
 
     @popularMenu.on 'change', 'watchList', (event) => fetchData(=>)
 
-    @advancedMenu = new Advanced fetchData, TimeFormatAccessor
+    @advancedMenu = new Advanced fetchData
 
     super(
       sections: [
@@ -587,16 +589,22 @@ class Main extends Menu
     @readyEmitter.notify()
 
 class Advanced extends Menu
-  constructor: (@fetchData, @TimeFormatAccessor) ->
+  constructor: (@fetchData) ->
     super(
       sections: [
         {
           items: [
             {
               title: "Time Format"
-              subtitle: "#{@TimeFormatAccessor.get()}h"
+              subtitle: "#{AppSettings.timeFormat}h"
               data:
                 id: 'timeFormat'
+            },
+            {
+              title: "Calendar Days"
+              subtitle: "#{AppSettings.calendarDays}"
+              data:
+                id: 'calendarDays'
             },
             {
               title: "Report a problem"
@@ -650,12 +658,19 @@ class Advanced extends Menu
           ).show()
 
         when 'timeFormat'
-          if @TimeFormatAccessor.get() == '24'
-            @TimeFormatAccessor.set '12'
+          if AppSettings.timeFormat == '24'
+            AppSettings.timeFormat = '12'
             changeSubtitleGivenEvent "12h", e
           else
-            @TimeFormatAccessor.set '24'
+            AppSettings.timeFormat = '24'
             changeSubtitleGivenEvent "24h", e
+
+        when 'calendarDays'
+          new_ = AppSettings.calendarDays + 7
+          if new_ > 28
+            new_ = 7
+          AppSettings.calendarDays = new_
+          changeSubtitleGivenEvent new_, e
 
         when 'reportProblem'
           logs = Settings.data 'logs'

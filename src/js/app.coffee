@@ -14,6 +14,7 @@ menus = require('menus')
 misc = require('misc')
 MyTimeline = require('mytimeline')
 cards = require('cards')
+AppSettings = require('appsettings')
 
 setupLogging = () ->
   @sessionLogs ?= []
@@ -49,6 +50,33 @@ initSettings = () ->
     signInWindow.hide()
     fetchData(->)
 
+showIDToTopic = (showID, pacificTimezoneCorrection) =>
+  if pacificTimezoneCorrection
+    "schedule-pacific-#{showID}"
+  else
+    "schedule-#{showID}"
+
+# TODO: move this logic somewhere else
+requiresPacificTimezoneCorrection = (timezone) =>
+  timezone == "America/Los_Angeles"
+
+subscribeToShows = (showIDList, userTimezone) =>
+  topics = (
+    showIDToTopic(
+      showID,
+      requiresPacificTimezoneCorrection(userTimezone)
+    ) for showID in showIDList
+  )
+
+  MyTimeline.updateSubscriptions topics
+
+subscribeToShowsWhenDataAvailable = (
+  @showIDList=@showIDList,
+  @userTimezone=@userTimezone) ->
+  if @showIDList and @userTimezone
+    subscribeToShows(@showIDList, @userTimezone)
+
+
 setupEvents = (toWatchMenu, upcomingMenu, popularMenu, myShowsMenu, signInWindow) ->
   Trakttv.on 'authorizationRequired', (event) ->
     message = event.message
@@ -63,7 +91,8 @@ setupEvents = (toWatchMenu, upcomingMenu, popularMenu, myShowsMenu, signInWindow
     watchingShowIDs = ("#{item.show.ids.trakt}" for item in shows)
     log.info "The user is watching the following shows:
             #{JSON.stringify watchingShowIDs}"
-    MyTimeline.updateSubscriptions watchingShowIDs
+    # MyTimeline.updateSubscriptions watchingShowIDs
+    subscribeToShowsWhenDataAvailable(watchingShowIDs, null)
 
   Trakttv.on 'update', 'popularShows', (event) ->
     popularShows = event.popularShows
@@ -78,18 +107,26 @@ setupEvents = (toWatchMenu, upcomingMenu, popularMenu, myShowsMenu, signInWindow
   Trakttv.on 'update', 'userSettings', (event) ->
     userSettings = event.userSettings
     Settings.data userSettings: userSettings
+    subscribeToShowsWhenDataAvailable(null, userSettings.account.timezone)
     upcomingMenu.update(null, userSettings.account.timezone)
+
+  AppSettings.on 'calendarDays', (event) ->
+    fetchMyShowsCalendar (err) ->
+      log.error("fetchMyShowsCalendar error: #{err.message}") if err
+      return
+
+fetchMyShowsCalendar = (cb) ->
+  Trakttv.getMyShowsCalendar(
+    moment().subtract(1, 'day').format('YYYY-MM-DD'),
+    AppSettings.calendarDays + 1,
+    cb
+  )
 
 fetchData = (callback) ->
   async.parallel(
     [
       Trakttv.fetchToWatchList
-      (cb) =>
-        Trakttv.getMyShowsCalendar(
-          moment().subtract(1, 'day').format('YYYY-MM-DD'),
-          7,
-          cb
-        )
+      fetchMyShowsCalendar
       (cb) => Trakttv.getPopular(null, cb)
       (cb) => Trakttv.getUserSettings (err, userSettings) =>
         return cb(err) if err
@@ -181,17 +218,11 @@ checkLaunchReason = (normalAppLaunchCallback, timelineLaunchCallback)->
     else
       normalAppLaunchCallback null
 
-class TimeFormat
-  @get: -> (Settings.data 'TimeFormat') or '12'
-  @set: (format) ->
-    if format != '12' and format != '24'
-      log.warn "setTimeFormat: invalid argument #{format}"
-      return
-    Settings.data TimeFormat: format
+
 
 normalAppLaunch = () ->
   userTimezone = (Settings.data 'userSettings')?.account.timezone
-  mainMenu = new menus.Main TimeFormat, fetchData, userTimezone
+  mainMenu = new menus.Main fetchData, userTimezone
   toWatchMenu = mainMenu.toWatchMenu
   upcomingMenu = mainMenu.upcomingMenu
   popularMenu = mainMenu.popularMenu
