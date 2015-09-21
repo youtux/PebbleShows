@@ -25,7 +25,10 @@ class AppSettings
       @emitter.emit 'timeFormat', timeFormat: value
   @define 'calendarDays',
     get: ->
-      @data.calendarDays or 7
+      if @data.calendarDays?
+        @data.calendarDays
+      else
+        7
     set: (value) ->
       if (typeof value) != 'number'
         throw new Error('calendarDays must be a number')

@@ -72,18 +72,13 @@ flashSubtitleError = (err, e, originalSubtitle) ->
   flashSubtitle "Failed (#{err.message})", e, originalSubtitle
 
 convertTimezone = (date, userTimezone, showTimezone) =>
-  log.debug "formatDate: #{JSON.stringify date}, #{userTimezone}, #{showTimezone}"
   date = moment(date)
   isUserAmerican = userTimezone.indexOf("America") >= 0
   isShowAmerican = showTimezone.indexOf("America") >= 0
 
   if isUserAmerican and isShowAmerican
     date.tz("America/New_York")
-    log.debug "Returning #{JSON.stringify date.toDate()}"
-    return date
-  else
-    log.debug "Returning #{JSON.stringify date}"
-    date
+  date
 
 
 class ReadyEmitter
@@ -290,25 +285,31 @@ class Upcoming extends Menu
         item.show.airs.timezone
       )
 
-    calendarItemsGrouped = misc.groupBy calendarItems, (item) =>
-        item.episode.first_aired.format(@userDateFormat)
-    # TODO: show empty section when there are no shows
-    sections =
-      {
-        title: dateFormatted
-        items:
-          {
-            title: item.show.title
-            subtitle: "S#{item.episode.season}E#{item.episode.number} | #{item.episode.first_aired.format(@getUserTimeFormat())}"
-            data:
-              showID: item.show.ids.trakt
-              showTitle: item.show.title
-              seasonNumber: item.episode.season
-              episodeNumber: item.episode.number
-              airs_at: item.episode.first_aired
+    calendarItems = calendarItems.filter (item) =>
+      moment(item.episode.first_aired).isAfter(@fromDate)
 
-          } for item in items when moment(item.episode.first_aired).isAfter(@fromDate)
-      } for dateFormatted, items of calendarItemsGrouped
+    calendarItemsGrouped = misc.groupBy calendarItems, (item) =>
+      item.episode.first_aired.format(@userDateFormat)
+
+    if misc.isEmpty calendarItemsGrouped
+      sections = [items: [ title: "No upcoming shows" ]]
+    else
+      sections =
+        {
+          title: dateFormatted
+          items:
+            {
+              title: item.show.title
+              subtitle: "S#{item.episode.season}E#{item.episode.number} | #{item.episode.first_aired.format(@getUserTimeFormat())}"
+              data:
+                showID: item.show.ids.trakt
+                showTitle: item.show.title
+                seasonNumber: item.episode.season
+                episodeNumber: item.episode.number
+                airs_at: item.episode.first_aired
+
+            } for item in items
+        } for dateFormatted, items of calendarItemsGrouped
 
     updateMenuSections @menu, sections
     @readyEmitter.notify()
@@ -672,9 +673,9 @@ class Advanced extends Menu
         when 'calendarDays'
           new_ = AppSettings.calendarDays + 7
           if new_ > 28
-            new_ = 7
+            new_ = 0
           AppSettings.calendarDays = new_
-          changeSubtitleGivenEvent new_, e
+          changeSubtitleGivenEvent "#{new_}", e
 
         when 'reportProblem'
           logs = Settings.data 'logs'
