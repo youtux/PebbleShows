@@ -472,7 +472,6 @@ class Popular extends Menu
       # Add to the watchlist
       element = e.item
       data = element.data
-      log.debug "longSelect: element: #{JSON.stringify element}"
 
       if data.inWatchList
         changeSubtitleGivenEvent "Removing from watchlist...", e
@@ -492,7 +491,6 @@ class Popular extends Menu
           data.inWatchList = true
 
           @emitter.emit 'change', 'watchList', {}
-          log.debug "longSelect: element after: #{JSON.stringify element}"
 
   on: (args...) -> @emitter.on(args...)
 
