@@ -284,7 +284,11 @@ class Upcoming extends Menu
     calendarItems = JSON.parse JSON.stringify @myShowsCalendar
 
     calendarItems.forEach (item) =>
-      item.episode.first_aired = convertTimezone(moment(item.episode.first_aired), @userTimezone, item.show.airs.timezone)
+      item.episode.first_aired = convertTimezone(
+        moment(item.episode.first_aired),
+        @userTimezone,
+        item.show.airs.timezone
+      )
 
     calendarItemsGrouped = misc.groupBy calendarItems, (item) =>
         item.episode.first_aired.format(@userDateFormat)
