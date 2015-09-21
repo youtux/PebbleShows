@@ -456,14 +456,14 @@ class Popular extends Menu
 
         changeSubtitleGivenEvent data.originalSubtitle, e
 
-        bannerURL = "#{config.BASE_SERVER_URL}/convert2png64?url=#{encodeURIComponent showData.images.fanart.thumb}"
-        log.info "Banner URL: #{bannerURL}"
+        # bannerURL = "#{config.BASE_SERVER_URL}/convert2png64?url=#{encodeURIComponent showData.images.fanart.thumb}"
+        # log.info "Banner URL: #{bannerURL}"
 
         detailedItemCard = new cards.Default(
           title: showData.title
           subtitle: showData.year
           body: "Overview: #{showData.overview}"
-          banner: bannerURL
+          # banner: bannerURL
         )
         detailedItemCard.show()
 
