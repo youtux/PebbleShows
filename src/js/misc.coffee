@@ -48,6 +48,11 @@ misc.retry = (func, callback, times = 10, delay = DEFAULT_RETRY_DELAY) ->
         return
     callback args...
 
+misc.isEmpty = (obj) ->
+  for key of obj
+    return false
+  return true
+
 misc.colorsAvailable = Platform.version() == "basalt"
 
 module.exports = misc
