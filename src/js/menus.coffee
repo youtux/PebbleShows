@@ -264,7 +264,7 @@ class ToWatch extends Menu
     @readyEmitter.notify()
 
 class Upcoming extends Menu
-  constructor: (@userTimezone, @userDateFormat = "D MMMM YYYY", @fromDate = null) ->
+  constructor: (@userTimezone = "America/New_York", @userDateFormat = "D MMMM YYYY", @fromDate = null) ->
     super()
     if @fromDate == null
       @fromDate = moment()
