@@ -53,6 +53,8 @@ misc.isEmpty = (obj) ->
     return false
   return true
 
-misc.colorsAvailable = Platform.version() == "basalt"
+platformsWithColors = ["basalt", "chalk"]
+
+misc.colorsAvailable = (Platform.version() in platformsWithColors)
 
 module.exports = misc
