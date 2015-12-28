@@ -67,15 +67,11 @@ subscribeToShows = (showIDList, userTimezone) =>
       requiresPacificTimezoneCorrection(userTimezone)
     ) for showID in showIDList
   )
-
   MyTimeline.updateSubscriptions topics
 
-subscribeToShowsWhenDataAvailable = (
-  @showIDList=@showIDList,
-  @userTimezone=@userTimezone) ->
+subscribeToShowsWhenDataAvailable = (@showIDList=@showIDList, @userTimezone=@userTimezone) ->
   if @showIDList and @userTimezone
     subscribeToShows(@showIDList, @userTimezone)
-
 
 setupEvents = (toWatchMenu, upcomingMenu, popularMenu, myShowsMenu, signInWindow) ->
   Trakttv.on 'authorizationRequired', (event) ->
@@ -134,7 +130,7 @@ fetchData = (callback) ->
         cb(err, userSettings)
     ]
     (err, result) =>
-      log.error("fetchData error: #{err.message}") if err
+      log.error("fetchData error: #{err}, #{err.message}") if err
       callback err, null
   )
 
