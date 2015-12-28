@@ -161,7 +161,7 @@ class Trakttv
                 doneItem()
           (err) =>
             events.emit 'update', 'shows', shows: shows
-            callback err, shows
+            callback null, shows
         )
     )
 
