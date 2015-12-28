@@ -35,10 +35,11 @@ changeSubtitleGivenEvent = (text, e) =>
   e.menu.item e.sectionIndex, e.itemIndex, e.item
 
 isNextEpisodeForItemAired = (item) ->
-  return false unless item.next_episode?
-  if item.next_episode.season > item.seasons.length
+  if not item.next_episode?
     return false
   season = s for s in item.seasons when s.number == item.next_episode.season
+  if not season?
+    return false
   if item.next_episode.number > season.aired
     return false
   true
