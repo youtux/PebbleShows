@@ -1,6 +1,7 @@
 var util2 = require('util2');
 var myutil = require('myutil');
 var Emitter = require('emitter');
+var Platform = require('platform');
 var WindowStack = require('ui/windowstack');
 var Window = require('ui/window');
 var simply = require('ui/simply');
@@ -29,11 +30,17 @@ util2.copy(Emitter.prototype, Menu.prototype);
 
 Menu.prototype._show = function() {
   Window.prototype._show.apply(this, arguments);
-  var select = this._selection;
-  simply.impl.menuSelection(select.sectionIndex, select.itemIndex);
+  this._select();
 };
 
-Menu.prototype._numPreloadItems = 50;
+Menu.prototype._select = function() {
+  if (this === WindowStack.top()) {
+    var select = this._selection;
+    simply.impl.menuSelection(select.sectionIndex, select.itemIndex);
+  }
+};
+
+Menu.prototype._numPreloadItems = (Platform.version() === 'aplite' ? 5 : 50);
 
 Menu.prototype._prop = function(state, clear, pushing) {
   if (this === WindowStack.top()) {
@@ -299,9 +306,17 @@ Menu.prototype.item = function(sectionIndex, itemIndex, item) {
   return this;
 };
 
-Menu.prototype.selection = function(callback) {
-  this._selections.push(callback);
-  simply.impl.menuSelection();
+Menu.prototype.selection = function(callback_or_sectionIndex, itemIndex) {
+  if (typeof callback_or_sectionIndex === 'function') {
+    this._selections.push(callback);
+    simply.impl.menuSelection();
+  } else {
+    this._selection = {
+      sectionIndex: callback_or_sectionIndex,
+      itemIndex: itemIndex
+    };
+    this._select();
+  }
 };
 
 Menu.emit = Window.emit;

@@ -1,10 +1,12 @@
 var struct = require('struct');
 var util2 = require('util2');
 var myutil = require('myutil');
+var Platform = require('platform');
 var Wakeup = require('wakeup');
 var Timeline = require('timeline');
 var Resource = require('ui/resource');
 var Accel = require('ui/accel');
+var Voice = require('ui/voice');
 var ImageService = require('ui/imageservice');
 var WindowStack = require('ui/windowstack');
 var Window = require('ui/window');
@@ -429,6 +431,21 @@ var LightTypes = [
 
 var LightType = makeArrayType(LightTypes);
 
+var DictationSessionStatus = [
+  null,
+  'transcriptionRejected',
+  'transcriptionRejectedWithError',
+  'systemAborted',
+  'noSpeechDetected',
+  'connectivityError',
+  'disabled',
+  'internalError',
+  'recognizerError',
+];
+// Custom Dictation Errors:
+DictationSessionStatus[64] = "sessionAlreadyInProgress";
+DictationSessionStatus[65] = "noMicrophone";
+
 var Packet = new struct([
   ['uint16', 'type'],
   ['uint16', 'length'],
@@ -764,6 +781,21 @@ var ElementAnimateDonePacket = new struct([
   ['uint32', 'id'],
 ]);
 
+var VoiceDictationStartPacket = new struct([
+  [Packet, 'packet'],
+  ['bool', 'enableConfirmation'],
+]);
+
+var VoiceDictationStopPacket = new struct([
+  [Packet, 'packet'],
+]);
+
+var VoiceDictationDataPacket = new struct([
+  [Packet, 'packet'],
+  ['int8', 'status'],
+  ['cstring', 'transcription'],
+]);
+
 var CommandPackets = [
   Packet,
   SegmentPacket,
@@ -815,6 +847,9 @@ var CommandPackets = [
   ElementImagePacket,
   ElementAnimatePacket,
   ElementAnimateDonePacket,
+  VoiceDictationStartPacket,
+  VoiceDictationStopPacket,
+  VoiceDictationDataPacket,
 ];
 
 var accelAxes = [
@@ -937,7 +972,7 @@ var PacketQueue = function() {
   this._send = this.send.bind(this);
 };
 
-PacketQueue.prototype._maxPayloadSize = 2044 - 32;
+PacketQueue.prototype._maxPayloadSize = (Platform.version() === 'aplite' ? 1024 : 2044) - 32;
 
 PacketQueue.prototype.add = function(packet) {
   var byteArray = toByteArray(packet);
@@ -1111,6 +1146,52 @@ SimplyPebble.accelPeek = function(callback) {
 
 SimplyPebble.accelConfig = function(def) {
   SimplyPebble.sendPacket(AccelConfigPacket.prop(def));
+};
+
+SimplyPebble.voiceDictationStart = function(callback, enableConfirmation) {
+  if (Platform.version() === 'aplite') {
+    // If there is no microphone, call with an error event
+    callback({
+      'err': DictationSessionStatus[65],  // noMicrophone
+      'failed': true,
+      'transcription': null,
+    });
+    return;
+  } else if (state.dictationCallback) {
+    // If there's a transcription in progress, call with an error event
+    callback({
+      'err': DictationSessionStatus[64],  // dictationAlreadyInProgress
+      'failed': true,
+      'transcription': null,
+    });
+    return;
+  }
+
+  // Set the callback and send the packet
+  state.dictationCallback = callback;
+  SimplyPebble.sendPacket(VoiceDictationStartPacket.enableConfirmation(enableConfirmation));
+};
+
+SimplyPebble.voiceDictationStop = function() {
+  // Send the message and delete the callback
+  SimplyPebble.sendPacket(VoiceDictationStopPacket);
+  delete state.dictationCallback;
+};
+
+SimplyPebble.onVoiceData = function(packet) {
+  if (!state.dictationCallback) {
+    // Something bad happened
+    console.log("No callback specified for dictation session");
+  } else {
+    var e = {
+      'err': DictationSessionStatus[packet.status()],
+      'failed': packet.status() !== 0,
+      'transcription': packet.transcription(),
+    };
+    // Invoke and delete the callback
+    state.dictationCallback(e);
+    delete state.dictationCallback;
+  }
 };
 
 SimplyPebble.menuClear = function() {
@@ -1381,11 +1462,15 @@ SimplyPebble.onPacket = function(buffer, offset) {
     case ElementAnimateDonePacket:
       StageElement.emitAnimateDone(packet.id());
       break;
+    case VoiceDictationDataPacket:
+      SimplyPebble.onVoiceData(packet);
+      break;
   }
 };
 
 SimplyPebble.onAppMessage = function(e) {
   var data = e.payload[0];
+  
   Packet._view = toArrayBuffer(data);
 
   var offset = 0;

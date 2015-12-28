@@ -11,58 +11,58 @@
       {
         "file": "images/icon_check.png",
         "name": "ICON_CHECK",
-        "type": "png"
+        "type": "bitmap"
       },
       {
         "file": "images/icon_dismiss.png",
         "name": "ICON_DISMISS",
-        "type": "png"
+        "type": "bitmap"
       },
       {
         "file": "images/menu_icon.png",
         "menuIcon": true,
         "name": "IMAGE_MENU_ICON",
-        "type": "png"
+        "type": "bitmap"
       },
       {
         "file": "images/icon_home.png",
         "name": "ICON_HOME",
-        "type": "png"
+        "type": "bitmap"
       },
       {
         "file": "images/icon_eye.png",
         "name": "ICON_EYE",
-        "type": "png"
+        "type": "bitmap"
       },
       {
         "file": "images/icon_popular.png",
         "name": "ICON_POPULAR",
-        "type": "png"
+        "type": "bitmap"
       },
       {
         "file": "images/icon_calendar.png",
         "name": "ICON_CALENDAR",
-        "type": "png"
+        "type": "bitmap"
       },
       {
         "file": "images/icon_menu_checked.png",
         "name": "ICON_MENU_CHECKED",
-        "type": "png"
+        "type": "bitmap"
       },
       {
         "file": "images/icon_menu_unchecked.png",
         "name": "ICON_MENU_UNCHECKED",
-        "type": "png"
+        "type": "bitmap"
       },
       {
         "file": "images/logo_splash.png",
         "name": "IMAGE_LOGO_SPLASH",
-        "type": "png"
+        "type": "bitmap"
       },
       {
         "file": "images/tile_splash.png",
         "name": "IMAGE_TILE_SPLASH",
-        "type": "png"
+        "type": "bitmap"
       },
       {
         "file": "fonts/UbuntuMono-Regular.ttf",
@@ -71,17 +71,17 @@
       }
     ]
   },
+  "sdkVersion": "3",
   "shortName": "Shows",
-  "uuid": "1596d615-c853-438c-9852-df68ce14d915",
-  "versionCode": 1,
-  "versionLabel": "3.7",
-  "watchapp": {
-    "watchface": false
-  },
   "targetPlatforms": [
     "aplite",
     "basalt",
     "chalk"
   ],
-  "sdkVersion": "3"
+  "uuid": "1596d615-c853-438c-9852-df68ce14d915",
+  "versionCode": 1,
+  "versionLabel": "3.7",
+  "watchapp": {
+    "watchface": false
+  }
 }

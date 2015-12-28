@@ -9,13 +9,10 @@
 #include "util/color.h"
 #include "util/graphics.h"
 #include "util/math.h"
-#include "util/noop.h"
 #include "util/string.h"
 #include "util/window.h"
 
 #include <pebble.h>
-
-#define TEXT_FLOW_INSET 8
 
 struct SimplyStyle {
   const char* title_font;
@@ -30,18 +27,25 @@ enum ClearIndex {
   ClearImage,
 };
 
+enum SimplyStyleId {
+  SimplyStyleId_Small = 0,
+  SimplyStyleId_Large,
+  SimplyStyleId_Mono,
+  SimplyStyleId_Default = SimplyStyleId_Large,
+};
+
 static SimplyStyle STYLES[] = {
-  {
+  [SimplyStyleId_Small] = {
     .title_font = FONT_KEY_GOTHIC_24_BOLD,
     .subtitle_font = FONT_KEY_GOTHIC_18_BOLD,
     .body_font = FONT_KEY_GOTHIC_18,
   },
-  {
+  [SimplyStyleId_Large] = {
     .title_font = FONT_KEY_GOTHIC_28_BOLD,
     .subtitle_font = FONT_KEY_GOTHIC_28,
     .body_font = FONT_KEY_GOTHIC_24_BOLD,
   },
-  {
+  [SimplyStyleId_Mono] = {
     .title_font = FONT_KEY_GOTHIC_24_BOLD,
     .subtitle_font = FONT_KEY_GOTHIC_18_BOLD,
     .custom_body_font_id = RESOURCE_ID_MONO_FONT_14,
@@ -90,6 +94,7 @@ void simply_ui_clear(SimplyUi *self, uint32_t clear_mask) {
     simply_window_action_bar_clear(&self->window);
   }
   if (clear_mask & (1 << ClearText)) {
+    simply_ui_set_style(self, SimplyStyleId_Default);
     for (int textfield_id = 0; textfield_id < NumUiTextfields; ++textfield_id) {
       simply_ui_set_text(self, textfield_id, NULL);
       simply_ui_set_text_color(self, textfield_id, GColor8Black);
@@ -126,19 +131,8 @@ void simply_ui_set_text_color(SimplyUi *self, SimplyUiTextfieldId textfield_id, 
   mark_dirty(self);
 }
 
-static void enable_text_flow_and_paging(SimplyUi *self, GTextAttributes *text_attributes,
-                                        const GRect *box) {
-  graphics_text_attributes_enable_screen_text_flow(text_attributes, TEXT_FLOW_INSET);
-  graphics_text_attributes_enable_paging(
-      text_attributes, box->origin, layer_get_bounds((Layer *)self->window.scroll_layer));
-}
-
 static void layer_update_callback(Layer *layer, GContext *ctx) {
-  SimplyUi *self = *(void **)layer_get_data(layer);
-
-  const GTextAlignment text_align =
-      PBL_IF_ROUND_ELSE((self->window.is_action_bar ? GTextAlignmentRight : GTextAlignmentCenter),
-                        GTextAlignmentLeft);
+  SimplyUi *self = *(void**) layer_get_data(layer);
 
   GRect window_frame = layer_get_frame(window_get_root_layer(self->window.window));
   GRect frame = layer_get_frame(layer);
@@ -159,7 +153,7 @@ static void layer_update_callback(Layer *layer, GContext *ctx) {
   GPoint cursor = { margin_x, margin_y };
 
   if (self->window.is_action_bar) {
-    text_frame.size.w -= ACTION_BAR_WIDTH + PBL_IF_ROUND_ELSE(TEXT_FLOW_INSET, 0);
+    text_frame.size.w -= ACTION_BAR_WIDTH;
     window_frame.size.w -= ACTION_BAR_WIDTH;
   }
 
@@ -168,10 +162,6 @@ static void layer_update_callback(Layer *layer, GContext *ctx) {
   const SimplyUiTextfield *title = &self->ui_layer.textfields[UiTitle];
   const SimplyUiTextfield *subtitle = &self->ui_layer.textfields[UiSubtitle];
   const SimplyUiTextfield *body = &self->ui_layer.textfields[UiBody];
-
-  GTextAttributes *title_attributes = graphics_text_attributes_create();
-  GTextAttributes *subtitle_attributes = graphics_text_attributes_create();
-  GTextAttributes *body_attributes = graphics_text_attributes_create();
 
   bool has_title = is_string(title->text);
   bool has_subtitle = is_string(subtitle->text);
@@ -188,73 +178,62 @@ static void layer_update_callback(Layer *layer, GContext *ctx) {
   SimplyImage *body_image = simply_res_get_image(
       self->window.simply->res, self->ui_layer.imagefields[UiBodyImage]);
 
-  GRect title_icon_bounds =
-      title_icon ? gbitmap_get_bounds(title_icon->bitmap) : GRectZero;
-  GRect subtitle_icon_bounds =
-      subtitle_icon ? gbitmap_get_bounds(subtitle_icon->bitmap) : GRectZero;
+  GRect title_icon_bounds;
+  GRect subtitle_icon_bounds;
   GRect body_image_bounds;
 
+  if (title_icon) {
+    title_icon_bounds = gbitmap_get_bounds(title_icon->bitmap);
+  }
+  if (subtitle_icon) {
+    subtitle_icon_bounds = gbitmap_get_bounds(subtitle_icon->bitmap);
+  }
+
   if (has_title) {
-    GRect title_frame = { cursor, text_frame.size };
+    GRect title_frame = text_frame;
     if (title_icon) {
-      title_icon_bounds.origin = title_frame.origin;
-      title_icon_bounds.origin.y += image_offset_y;
-      PBL_IF_RECT_ELSE({
-        title_frame.origin.x += title_icon_bounds.size.w;
-        title_frame.size.w -= title_icon_bounds.size.w;
-      }, {
-        title_frame.origin.y += title_icon_bounds.size.h;
-      });
+      title_frame.origin.x += title_icon_bounds.size.w;
+      title_frame.size.w -= title_icon_bounds.size.w;
     }
-    enable_text_flow_and_paging(self, title_attributes, &title_frame);
-    title_size = graphics_text_layout_get_content_size_with_attributes(
-        title->text, title_font, title_frame, GTextOverflowModeWordWrap, text_align,
-        title_attributes);
+    title_size = graphics_text_layout_get_content_size(title->text,
+        title_font, title_frame, GTextOverflowModeWordWrap, GTextAlignmentLeft);
     title_size.w = title_frame.size.w;
-    title_pos = title_frame.origin;
-    cursor.y = title_frame.origin.y + title_size.h;
+    title_pos = cursor;
+    if (title_icon) {
+      title_pos.x += title_icon_bounds.size.w;
+    }
+    cursor.y += title_size.h;
   }
 
   if (has_subtitle) {
-    GRect subtitle_frame = { cursor, text_frame.size };
+    GRect subtitle_frame = text_frame;
     if (subtitle_icon) {
-      subtitle_icon_bounds.origin = subtitle_frame.origin;
-      subtitle_icon_bounds.origin.y += image_offset_y;
-      PBL_IF_RECT_ELSE({
-        subtitle_frame.origin.x += subtitle_icon_bounds.size.w;
-        subtitle_frame.size.w -= subtitle_icon_bounds.size.w;
-      }, {
-        subtitle_frame.origin.y += subtitle_icon_bounds.size.h;
-      });
+      subtitle_frame.origin.x += subtitle_icon_bounds.size.w;
+      subtitle_frame.size.w -= subtitle_icon_bounds.size.w;
     }
-    enable_text_flow_and_paging(self, title_attributes, &subtitle_frame);
-    subtitle_size = graphics_text_layout_get_content_size_with_attributes(
-        subtitle->text, title_font, subtitle_frame, GTextOverflowModeWordWrap, text_align,
-        subtitle_attributes);
+    subtitle_size = graphics_text_layout_get_content_size(subtitle->text,
+        subtitle_font, subtitle_frame, GTextOverflowModeWordWrap, GTextAlignmentLeft);
     subtitle_size.w = subtitle_frame.size.w;
-    subtitle_pos = subtitle_frame.origin;
+    subtitle_pos = cursor;
     if (subtitle_icon) {
       subtitle_pos.x += subtitle_icon_bounds.size.w;
     }
-    cursor.y = subtitle_frame.origin.y + subtitle_size.h;
+    cursor.y += subtitle_size.h;
   }
 
   if (body_image) {
     body_image_bounds = gbitmap_get_bounds(body_image->bitmap);
+    image_pos = cursor;
+    cursor.y += body_image_bounds.size.h;
   }
 
   if (has_body) {
-    body_rect = (GRect) { cursor, (self->window.is_scrollable ? text_frame.size : frame.size) };
+    body_rect = frame;
     body_rect.origin = cursor;
     body_rect.size.w = text_frame.size.w;
     body_rect.size.h -= 2 * margin_y + cursor.y;
-    if (body_image) {
-      image_pos = body_rect.origin;
-      body_rect.origin.y += body_image_bounds.size.h;
-    }
-    enable_text_flow_and_paging(self, body_attributes, &body_rect);
-    GSize body_size = graphics_text_layout_get_content_size_with_attributes(
-        body->text, body_font, body_rect, GTextOverflowModeWordWrap, text_align, body_attributes);
+    GSize body_size = graphics_text_layout_get_content_size(body->text,
+        body_font, text_frame, GTextOverflowModeWordWrap, GTextAlignmentLeft);
     if (self->window.is_scrollable) {
       body_rect.size = body_size;
       int16_t new_height = cursor.y + 2 * margin_y + body_size.h;
@@ -264,50 +243,47 @@ static void layer_update_callback(Layer *layer, GContext *ctx) {
     } else if (!self->ui_layer.custom_body_font && body_size.h > body_rect.size.h) {
       body_font = fonts_get_system_font(FONT_KEY_GOTHIC_18);
     }
-    cursor.y = body_rect.origin.y + body_size.h;
   }
 
   graphics_context_set_fill_color(ctx, GColorBlack);
   graphics_fill_rect(ctx, frame, 0, GCornerNone);
 
-  const int radius = SDK_SELECT(0, 4);
   graphics_context_set_fill_color(ctx, gcolor8_get_or(self->window.background_color, GColorWhite));
-  graphics_fill_rect(ctx, frame, radius, GCornersAll);
+  graphics_fill_rect(ctx, frame, 4, GCornersAll);
 
   if (title_icon) {
-    GRect icon_frame = title_icon_bounds;
-    icon_frame.origin.x =
-        PBL_IF_ROUND_ELSE((frame.size.w - title_icon_bounds.size.w) / 2, margin_x);
-    PBL_IF_RECT_ELSE(icon_frame.size.h = title_size.h, NOOP);
+    GRect icon_frame = (GRect) {
+      .origin = { margin_x, title_pos.y + image_offset_y },
+      .size = { title_icon_bounds.size.w, title_size.h }
+    };
     graphics_context_set_alpha_blended(ctx, true);
     graphics_draw_bitmap_centered(ctx, title_icon->bitmap, icon_frame);
   }
   if (has_title) {
     graphics_context_set_text_color(ctx, gcolor8_get_or(title->color, GColorBlack));
-    graphics_draw_text(ctx, title->text, title_font, (GRect) { title_pos, title_size },
-                       GTextOverflowModeWordWrap, text_align, title_attributes);
+    graphics_draw_text(ctx, title->text, title_font,
+        (GRect) { .origin = title_pos, .size = title_size },
+        GTextOverflowModeWordWrap, GTextAlignmentLeft, NULL);
   }
 
   if (subtitle_icon) {
-    GRect subicon_frame = subtitle_icon_bounds;
-    subicon_frame.origin.x =
-        PBL_IF_ROUND_ELSE((frame.size.w - subtitle_icon_bounds.size.w) / 2, margin_x);
-    PBL_IF_RECT_ELSE(subicon_frame.size.h = subtitle_size.h, NOOP);
+    GRect subicon_frame = (GRect) {
+      .origin = { margin_x, subtitle_pos.y + image_offset_y },
+      .size = { subtitle_icon_bounds.size.w, subtitle_size.h }
+    };
     graphics_context_set_alpha_blended(ctx, true);
     graphics_draw_bitmap_centered(ctx, subtitle_icon->bitmap, subicon_frame);
   }
   if (has_subtitle) {
     graphics_context_set_text_color(ctx, gcolor8_get_or(subtitle->color, GColorBlack));
-    graphics_draw_text(ctx, subtitle->text, subtitle_font, (GRect) { subtitle_pos, subtitle_size },
-                       GTextOverflowModeWordWrap, text_align, subtitle_attributes);
+    graphics_draw_text(ctx, subtitle->text, subtitle_font,
+        (GRect) { .origin = subtitle_pos, .size = subtitle_size },
+        GTextOverflowModeWordWrap, GTextAlignmentLeft, NULL);
   }
 
   if (body_image) {
     GRect image_frame = (GRect) {
-      .origin = {
-        PBL_IF_ROUND_ELSE(((frame.size.w - body_rect.size.w) / 2), 0),
-        image_pos.y + image_offset_y,
-      },
+      .origin = { 0, image_pos.y + image_offset_y },
       .size = { window_frame.size.w, body_image_bounds.size.h }
     };
     graphics_context_set_alpha_blended(ctx, true);
@@ -316,12 +292,8 @@ static void layer_update_callback(Layer *layer, GContext *ctx) {
   if (has_body) {
     graphics_context_set_text_color(ctx, gcolor8_get_or(body->color, GColorBlack));
     graphics_draw_text(ctx, body->text, body_font, body_rect,
-                       GTextOverflowModeTrailingEllipsis, text_align, body_attributes);
+        GTextOverflowModeTrailingEllipsis, GTextAlignmentLeft, NULL);
   }
-
-  graphics_text_attributes_destroy(title_attributes);
-  graphics_text_attributes_destroy(subtitle_attributes);
-  graphics_text_attributes_destroy(body_attributes);
 }
 
 static void show_welcome_text(SimplyUi *self) {
