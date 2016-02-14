@@ -408,9 +408,11 @@ var CardImageTypes = [
 var CardImageType = makeArrayType(CardImageTypes);
 
 var CardStyleTypes = [
+  'classic-small',
+  'classic-large',
+  'mono',
   'small',
   'large',
-  'mono',
 ];
 
 var CardStyleType = makeArrayType(CardStyleTypes);
@@ -445,6 +447,13 @@ var DictationSessionStatus = [
 // Custom Dictation Errors:
 DictationSessionStatus[64] = "sessionAlreadyInProgress";
 DictationSessionStatus[65] = "noMicrophone";
+
+var StatusBarSeparatorModeTypes = [
+  'none',
+  'dotted',
+];
+
+var StatusBarSeparatorModeType = makeArrayType(StatusBarSeparatorModeTypes);
 
 var Packet = new struct([
   ['uint16', 'type'],
@@ -518,7 +527,6 @@ var WindowPropsPacket = new struct([
   [Packet, 'packet'],
   ['uint32', 'id'],
   ['uint8', 'backgroundColor', Color],
-  ['bool', 'fullscreen', BoolType],
   ['bool', 'scrollable', BoolType],
 ]);
 
@@ -527,13 +535,21 @@ var WindowButtonConfigPacket = new struct([
   ['uint8', 'buttonMask', ButtonFlagsType],
 ]);
 
+var WindowStatusBarPacket = new struct([
+  [Packet, 'packet'],
+  ['uint8', 'backgroundColor', Color],
+  ['uint8', 'color', Color],
+  ['uint8', 'separator', StatusBarSeparatorModeType],
+  ['uint8', 'status', BoolType],
+]);
+
 var WindowActionBarPacket = new struct([
   [Packet, 'packet'],
   ['uint32', 'up', ImageType],
   ['uint32', 'select', ImageType],
   ['uint32', 'down', ImageType],
-  ['uint8', 'action', BoolType],
   ['uint8', 'backgroundColor', Color],
+  ['uint8', 'action', BoolType],
 ]);
 
 var ClickPacket = new struct([
@@ -641,6 +657,8 @@ var MenuSectionPacket = new struct([
   [Packet, 'packet'],
   ['uint16', 'section'],
   ['uint16', 'items', EnumerableType],
+  ['uint8', 'backgroundColor', Color],
+  ['uint8', 'textColor', Color],
   ['uint16', 'titleLength', EnumerableType],
   ['cstring', 'title', StringType],
 ]);
@@ -743,6 +761,24 @@ var ElementRadiusPacket = new struct([
   ['uint16', 'radius', EnumerableType],
 ]);
 
+var ElementAngleStartPacket = new struct([
+  [Packet, 'packet'],
+  ['uint32', 'id'],
+  ['uint16', 'angleStart', EnumerableType],
+]);
+
+var ElementAngleEndPacket = new struct([
+  [Packet, 'packet'],
+  ['uint32', 'id'],
+  ['uint16', 'angleEnd', EnumerableType],
+]);
+
+var ElementBorderWidthPacket = new struct([
+  [Packet, 'packet'],
+  ['uint32', 'id'],
+  ['uint16', 'borderWidth', EnumerableType],
+]);
+
 var ElementTextPacket = new struct([
   [Packet, 'packet'],
   ['uint32', 'id'],
@@ -811,6 +847,7 @@ var CommandPackets = [
   WindowHideEventPacket,
   WindowPropsPacket,
   WindowButtonConfigPacket,
+  WindowStatusBarPacket,
   WindowActionBarPacket,
   ClickPacket,
   LongClickPacket,
@@ -842,6 +879,9 @@ var CommandPackets = [
   ElementRemovePacket,
   ElementCommonPacket,
   ElementRadiusPacket,
+  ElementAngleStartPacket,
+  ElementAngleEndPacket,
+  ElementBorderWidthPacket,
   ElementTextPacket,
   ElementTextStylePacket,
   ElementImagePacket,
@@ -1047,6 +1087,31 @@ SimplyPebble.windowButtonConfig = function(def) {
   SimplyPebble.sendPacket(WindowButtonConfigPacket.buttonMask(def));
 };
 
+var toStatusDef = function(statusDef) {
+  if (typeof statusDef === 'boolean') {
+    statusDef = { status: statusDef };
+  }
+  return statusDef;
+};
+
+SimplyPebble.windowStatusBar = function(def) {
+  var statusDef = toStatusDef(def);
+  WindowStatusBarPacket
+    .separator(statusDef.separator || 'dotted')
+    .status(typeof def === 'boolean' ? def : true)
+    .color(statusDef.color || 'black')
+    .backgroundColor(statusDef.backgroundColor || 'white');
+  SimplyPebble.sendPacket(WindowStatusBarPacket);
+};
+
+SimplyPebble.windowStatusBarCompat = function(def) {
+  if (typeof def.fullscreen === 'boolean') {
+    SimplyPebble.windowStatusBar(!def.fullscreen);
+  } else if (def.status !== undefined) {
+    SimplyPebble.windowStatusBar(def.status);
+  }
+};
+
 var toActionDef = function(actionDef) {
   if (typeof actionDef === 'boolean') {
     actionDef = { action: actionDef };
@@ -1114,6 +1179,7 @@ SimplyPebble.card = function(def, clear, pushing) {
     SimplyPebble.cardClear(clear);
   }
   SimplyPebble.windowProps(def);
+  SimplyPebble.windowStatusBarCompat(def);
   if (def.action !== undefined) {
     SimplyPebble.windowActionBar(def.action);
   }
@@ -1213,6 +1279,8 @@ SimplyPebble.menuSection = function(section, def, clear) {
   MenuSectionPacket
     .section(section)
     .items(def.items)
+    .backgroundColor(def.backgroundColor)
+    .textColor(def.textColor)
     .titleLength(def.title)
     .title(def.title);
   SimplyPebble.sendPacket(MenuSectionPacket);
@@ -1246,6 +1314,7 @@ SimplyPebble.menu = function(def, clear, pushing) {
     SimplyPebble.menuClear();
   }
   SimplyPebble.windowProps(def);
+  SimplyPebble.windowStatusBarCompat(def);
   SimplyPebble.menuProps(def);
 };
 
@@ -1268,6 +1337,18 @@ SimplyPebble.elementCommon = function(id, def) {
 
 SimplyPebble.elementRadius = function(id, radius) {
   SimplyPebble.sendPacket(ElementRadiusPacket.id(id).radius(radius));
+};
+
+SimplyPebble.elementAngleStart = function(id, angleStart) {
+  SimplyPebble.sendPacket(ElementAngleStartPacket.id(id).angleStart(angleStart));
+};
+
+SimplyPebble.elementAngleEnd = function(id, angleEnd) {
+  SimplyPebble.sendPacket(ElementAngleEndPacket.id(id).angleEnd(angleEnd));
+};
+
+SimplyPebble.elementBorderWidth = function(id, borderWidth) {
+  SimplyPebble.sendPacket(ElementBorderWidthPacket.id(id).borderWidth(borderWidth));
 };
 
 SimplyPebble.elementText = function(id, text, timeUnits) {
@@ -1313,6 +1394,12 @@ SimplyPebble.stageElement = function(id, type, def, index) {
     case StageElement.CircleType:
       SimplyPebble.elementRadius(id, def.radius);
       break;
+    case StageElement.RadialType:
+      SimplyPebble.elementRadius(id, def.radius);
+      SimplyPebble.elementAngleStart(id, def.angleStart);
+      SimplyPebble.elementAngleEnd(id, def.angleEnd);
+      SimplyPebble.elementBorderWidth(id, def.borderWidth);
+      break;
     case StageElement.TextType:
       SimplyPebble.elementRadius(id, def.radius);
       SimplyPebble.elementTextStyle(id, def);
@@ -1334,6 +1421,7 @@ SimplyPebble.stage = function(def, clear, pushing) {
     SimplyPebble.windowShow({ type: 'window', pushing: pushing });
   }
   SimplyPebble.windowProps(def);
+  SimplyPebble.windowStatusBarCompat(def);
   if (clear !== undefined) {
     SimplyPebble.stageClear();
   }

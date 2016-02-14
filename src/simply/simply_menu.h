@@ -10,6 +10,9 @@
 
 #include <pebble.h>
 
+//! Default cell height in pixels
+#define MENU_CELL_BASIC_CELL_HEIGHT ((const int16_t) 44)
+
 typedef enum SimplyMenuType SimplyMenuType;
 
 enum SimplyMenuType {
@@ -61,6 +64,8 @@ typedef struct SimplyMenuSection SimplyMenuSection;
 struct SimplyMenuSection {
   SimplyMenuCommonMember;
   uint16_t num_items;
+  GColor8 title_foreground;
+  GColor8 title_background;
 };
 
 typedef struct SimplyMenuItem SimplyMenuItem;

@@ -7,11 +7,11 @@ var Window = require('ui/window');
 var simply = require('ui/simply');
 
 var defaults = {
+  status: true,
   backgroundColor: 'white',
   textColor: 'black',
   highlightBackgroundColor: 'black',
   highlightTextColor: 'white',
-  fullscreen: false,
 };
 
 var Menu = function(menuDef) {
@@ -157,6 +157,10 @@ Menu.prototype._resolveMenu = function(clear, pushing) {
 Menu.prototype._resolveSection = function(e, clear) {
   var section = this._getSection(e);
   if (!section) { return; }
+  section = myutil.shadow({
+    textColor: this.state.textColor, 
+    backgroundColor: this.state.backgroundColor
+  }, section);
   section.items = this._getItems(e);
   if (this === WindowStack.top()) {
     simply.impl.menuSection.call(this, e.sectionIndex, section, clear);
